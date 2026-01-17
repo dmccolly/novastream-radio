@@ -1,0 +1,7 @@
+{
+  "name": "NovaStream Radio Pro",
+  "description": "A professional-grade radio broadcasting and streaming dashboard with intelligent scheduling, real-time visualizers, and AI-driven automated hosting.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

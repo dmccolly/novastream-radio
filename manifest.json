@@ -1,0 +1,18 @@
+
+{
+  "name": "NovaStream Radio Pro",
+  "short_name": "NovaStream",
+  "description": "Professional Grade Radio Broadcasting Dashboard",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#020203",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3104/3104278.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
