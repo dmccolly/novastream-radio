@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useTransition } from 'react';
 import { Track } from '../types';
 import { Icons } from '../constants';
-import { saveTracksBatch, updateTrack, exportVaultIndex } from '../services/stationService';
+import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex } from '../services/stationService';
 import { harvestDropbox } from '../services/dropboxService';
 
 interface LibraryViewProps {
@@ -72,6 +72,31 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
     }
   };
 
+  const handleImportJSON = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setIsHarvesting(true);
+      setLogs([]);
+      addLog(">> IMPORT: READING_JSON...");
+      try {
+        await importVaultIndex(file);
+        await onRefresh();
+        addLog(">> IMPORT: SUCCESS");
+        setSyncComplete(true);
+        setTimeout(() => setSyncComplete(false), 3000);
+      } catch (e: any) {
+        addLog(`!! IMPORT_ERROR: ${e.message}`);
+      } finally {
+        setIsHarvesting(false);
+      }
+    };
+    input.click();
+  };
+
   const filteredTracks = useMemo(() => {
     const term = localSearch.toLowerCase().trim();
     const baseList = isInspecting ? cloudIndex : tracks;
@@ -104,6 +129,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
           />
         </div>
         <div className="flex gap-2">
+            <button onClick={handleImportJSON} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Import Index</button>
             <button onClick={() => exportVaultIndex()} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Export Index</button>
             <button 
                 onClick={triggerCloudHarvest} 
