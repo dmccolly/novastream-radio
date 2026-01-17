@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useTransition, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { Track } from '../types';
 import { Icons } from '../constants';
 import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex } from '../services/stationService';
@@ -19,52 +19,60 @@ const CATEGORY_MAP: Record<string, string> = {
   commercial: 'COM'
 };
 
-// Memoized track row component to prevent unnecessary re-renders
+const ROW_HEIGHT = 60;
+
+// Highly optimized track row with no unnecessary re-renders
 const TrackRow = memo(({ 
   track, 
   isSelected, 
   isEditing, 
   onToggle, 
-  onClick 
+  onClick,
+  style
 }: { 
   track: Track; 
   isSelected: boolean; 
   isEditing: boolean; 
   onToggle: (id: string) => void; 
   onClick: (track: Track) => void;
+  style: React.CSSProperties;
 }) => (
-  <tr 
+  <div 
+    style={style}
     onClick={() => onClick(track)} 
-    className={`border-b border-zinc-900/50 hover:bg-blue-600/5 transition-colors cursor-pointer group ${isEditing ? 'bg-blue-600/10' : ''}`}
+    className={`flex items-center border-b border-zinc-900/50 hover:bg-blue-600/5 transition-colors cursor-pointer group ${isEditing ? 'bg-blue-600/10' : ''}`}
   >
-    <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+    <div className="px-6 w-12 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
       <input 
         type="checkbox" 
         checked={isSelected} 
         onChange={() => onToggle(track.id)}
         className="w-3 h-3 accent-blue-600" 
       />
-    </td>
-    <td className="px-6 py-3">
-      <span className="text-[10px] font-black uppercase text-zinc-300 block truncate group-hover:text-white">{track.title}</span>
-      <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest italic truncate">{track.artist}</span>
-    </td>
-    <td className="px-6 py-3">
+    </div>
+    <div className="flex-1 px-6 min-w-0">
+      <div className="text-[10px] font-black uppercase text-zinc-300 truncate group-hover:text-white">{track.title}</div>
+      <div className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest italic truncate">{track.artist}</div>
+    </div>
+    <div className="px-6 w-24">
       <span className={`text-[7px] font-black uppercase tracking-widest ${track.source === 'cloud' ? 'text-blue-500' : 'text-zinc-500'}`}>
         {track.source === 'cloud' ? '☁️ CLOUD' : '📁 LOCAL'}
       </span>
-    </td>
-    <td className="px-6 py-3">
+    </div>
+    <div className="px-6 w-20">
       <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{CATEGORY_MAP[track.assetType] || 'UNK'}</span>
-    </td>
-    <td className="px-6 py-3 text-right">
+    </div>
+    <div className="px-6 w-20 text-right">
       <span className="text-[7px] font-mono text-zinc-600">{track.segueOffset ? `${track.segueOffset > 0 ? '+' : ''}${track.segueOffset.toFixed(1)}s` : '-0.0s'}</span>
-    </td>
-  </tr>
-));
+    </div>
+  </div>
+), (prevProps, nextProps) => {
+  return prevProps.track.id === nextProps.track.id &&
+         prevProps.isSelected === nextProps.isSelected &&
+         prevProps.isEditing === nextProps.isEditing;
+});
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
-  const [isPending, startTransition] = useTransition();
   const [localSearch, setLocalSearch] = useState('');
   const [isInspecting, setIsInspecting] = useState(false);
   const [cloudIndex, setCloudIndex] = useState<Track[]>([]);
@@ -73,6 +81,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [logs, setLogs] = useState<string[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
@@ -176,6 +186,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
     }
   };
 
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  // Calculate visible range
+  const containerHeight = scrollContainerRef.current?.clientHeight || 600;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
+  const endIndex = Math.min(filteredTracks.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + 5);
+  const visibleTracks = filteredTracks.slice(startIndex, endIndex);
+  const totalHeight = filteredTracks.length * ROW_HEIGHT;
+  const offsetY = startIndex * ROW_HEIGHT;
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex justify-between items-center gap-6">
@@ -185,11 +207,11 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
               placeholder="FILTER LOCAL VAULT..." 
               className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-6 text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
               value={localSearch} 
-              onChange={(e) => startTransition(() => setLocalSearch(e.target.value))} 
+              onChange={(e) => setLocalSearch(e.target.value)} 
           />
         </div>
         <div className="flex gap-2">
-            <button onClick={handleImportJSON} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Import Index</button>
+            <button onClick={handleImportJSON} disabled={isHarvesting} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all disabled:opacity-50">Import Index</button>
             <button onClick={() => exportVaultIndex()} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Export Index</button>
             <button 
                 onClick={triggerCloudHarvest} 
@@ -213,7 +235,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
 
       <div className="flex-1 bg-[#050507] rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden flex min-h-[500px] relative">
         {isHarvesting && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[60] flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[60] flex flex-col items-center justify-center p-12 text-center">
                 <div className="w-12 h-12 border-2 border-t-blue-500 border-zinc-900 rounded-full animate-spin mb-6" />
                 <div className="w-full max-w-lg bg-zinc-950 border border-zinc-900 rounded-2xl p-6 text-left font-mono text-[9px] space-y-1 overflow-y-auto max-h-64 shadow-2xl">
                     {logs.map((log, i) => (
@@ -226,30 +248,42 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
             </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${editingTrack ? 'mr-96' : ''}`} style={{willChange: 'scroll-position'}}>
-            <table className="w-full text-left border-collapse table-fixed">
-                <thead className="sticky top-0 bg-[#020203] z-20 border-b border-zinc-800">
-                    <tr>
-                        <th className="px-6 py-3 w-12 text-center"><input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredTracks.length && filteredTracks.length > 0} className="w-3 h-3 accent-blue-600" /></th>
-                        <th className="px-6 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">ID / Title</th>
-                        <th className="px-6 py-3 w-24 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Source</th>
-                        <th className="px-6 py-3 w-20 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Type</th>
-                        <th className="px-6 py-3 w-20 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600 text-right">Offset</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {filteredTracks.map((t) => (
-                        <TrackRow 
-                          key={t.id}
-                          track={t}
-                          isSelected={selectedIds.has(t.id)}
-                          isEditing={editingTrack?.id === t.id}
-                          onToggle={toggleSelection}
-                          onClick={setEditingTrack}
-                        />
-                    ))}
-                </tbody>
-            </table>
+        <div 
+          ref={scrollContainerRef}
+          className={`flex-1 overflow-y-auto overflow-x-hidden ${editingTrack ? 'mr-96' : ''}`}
+          onScroll={handleScroll}
+          style={{
+            scrollBehavior: 'auto',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          {/* Header */}
+          <div className="sticky top-0 bg-[#020203] z-20 border-b border-zinc-800 flex items-center" style={{height: ROW_HEIGHT}}>
+            <div className="px-6 w-12 flex items-center justify-center">
+              <input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredTracks.length && filteredTracks.length > 0} className="w-3 h-3 accent-blue-600" />
+            </div>
+            <div className="flex-1 px-6 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">ID / Title</div>
+            <div className="px-6 w-24 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Source</div>
+            <div className="px-6 w-20 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Type</div>
+            <div className="px-6 w-20 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600 text-right">Offset</div>
+          </div>
+
+          {/* Virtual scrolling container */}
+          <div style={{ height: totalHeight, position: 'relative' }}>
+            <div style={{ transform: `translateY(${offsetY}px)` }}>
+              {visibleTracks.map((track, idx) => (
+                <TrackRow 
+                  key={track.id}
+                  track={track}
+                  isSelected={selectedIds.has(track.id)}
+                  isEditing={editingTrack?.id === track.id}
+                  onToggle={toggleSelection}
+                  onClick={setEditingTrack}
+                  style={{ height: ROW_HEIGHT }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
 
         {editingTrack && (
@@ -260,7 +294,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                         <Icons.X />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div>
                         <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Title</label>
                         <input 
