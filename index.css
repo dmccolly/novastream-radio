@@ -1,4 +1,6 @@
-/* NovaStream Radio Pro - Global Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 * {
   margin: 0;
