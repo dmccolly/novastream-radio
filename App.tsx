@@ -237,13 +237,15 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-hidden relative">
         <div className="h-full overflow-y-auto custom-scrollbar p-12">
           <div className="max-w-7xl mx-auto space-y-12 pb-24">
-            <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-               <ClockPanel />
-               <div className="bg-[#0a0a0c] p-6 px-10 rounded-[2.5rem] border border-zinc-900 shadow-2xl flex flex-col items-center">
-                    <div className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-2 italic">Signal Route</div>
-                    <div className="text-xs font-black italic tracking-tighter text-blue-500 font-mono uppercase">DIRECT_MODE</div>
-               </div>
-            </div>
+            {activeTab === 'studio' && (
+              <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                 <ClockPanel />
+                 <div className="bg-[#0a0a0c] p-6 px-10 rounded-[2.5rem] border border-zinc-900 shadow-2xl flex flex-col items-center">
+                      <div className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-2 italic">Signal Route</div>
+                      <div className="text-xs font-black italic tracking-tighter text-blue-500 font-mono uppercase">DIRECT_MODE</div>
+                 </div>
+              </div>
+            )}
             
             {activeTab === 'studio' && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">

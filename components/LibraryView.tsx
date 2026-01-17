@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useTransition } from 'react';
+import React, { useState, useMemo, useTransition, useCallback, memo } from 'react';
 import { Track } from '../types';
 import { Icons } from '../constants';
 import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex } from '../services/stationService';
@@ -19,6 +19,50 @@ const CATEGORY_MAP: Record<string, string> = {
   commercial: 'COM'
 };
 
+// Memoized track row component to prevent unnecessary re-renders
+const TrackRow = memo(({ 
+  track, 
+  isSelected, 
+  isEditing, 
+  onToggle, 
+  onClick 
+}: { 
+  track: Track; 
+  isSelected: boolean; 
+  isEditing: boolean; 
+  onToggle: (id: string) => void; 
+  onClick: (track: Track) => void;
+}) => (
+  <tr 
+    onClick={() => onClick(track)} 
+    className={`border-b border-zinc-900/50 hover:bg-blue-600/5 transition-colors cursor-pointer group ${isEditing ? 'bg-blue-600/10' : ''}`}
+  >
+    <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+      <input 
+        type="checkbox" 
+        checked={isSelected} 
+        onChange={() => onToggle(track.id)}
+        className="w-3 h-3 accent-blue-600" 
+      />
+    </td>
+    <td className="px-6 py-3">
+      <span className="text-[10px] font-black uppercase text-zinc-300 block truncate group-hover:text-white">{track.title}</span>
+      <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest italic truncate">{track.artist}</span>
+    </td>
+    <td className="px-6 py-3">
+      <span className={`text-[7px] font-black uppercase tracking-widest ${track.source === 'cloud' ? 'text-blue-500' : 'text-zinc-500'}`}>
+        {track.source === 'cloud' ? '☁️ CLOUD' : '📁 LOCAL'}
+      </span>
+    </td>
+    <td className="px-6 py-3">
+      <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{CATEGORY_MAP[track.assetType] || 'UNK'}</span>
+    </td>
+    <td className="px-6 py-3 text-right">
+      <span className="text-[7px] font-mono text-zinc-600">{track.segueOffset ? `${track.segueOffset > 0 ? '+' : ''}${track.segueOffset.toFixed(1)}s` : '-0.0s'}</span>
+    </td>
+  </tr>
+));
+
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [isPending, startTransition] = useTransition();
   const [localSearch, setLocalSearch] = useState('');
@@ -30,7 +74,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [syncComplete, setSyncComplete] = useState(false);
 
-  const addLog = (msg: string) => setLogs(prev => [...prev, msg].slice(-30));
+  const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
   const triggerCloudHarvest = async () => {
     setIsHarvesting(true);
@@ -104,22 +148,38 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
     return baseList.filter(t => t.title.toLowerCase().includes(term) || t.artist.toLowerCase().includes(term));
   }, [isInspecting, cloudIndex, tracks, localSearch]);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredTracks.length) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filteredTracks.map(t => t.id)));
-  };
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const toggleSelection = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filteredTracks.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTracks.map(t => t.id)));
+    }
+  }, [selectedIds.size, filteredTracks]);
+
+  const handleSaveEdit = async () => {
+    if (!editingTrack) return;
+    try {
+      await updateTrack(editingTrack);
+      await onRefresh();
+      setEditingTrack(null);
+    } catch (e: any) {
+      alert(`Failed to update track: ${e.message}`);
+    }
   };
 
   return (
-    <div className="relative flex flex-col h-full space-y-4 animate-in fade-in duration-500">
-      <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-4 bg-[#0d0d0f] p-3 rounded-2xl border border-zinc-900 shadow-xl">
-        <div className="relative flex-1">
+    <div className="flex flex-col h-full space-y-6">
+      <div className="flex justify-between items-center gap-6">
+        <div className="flex-1">
           <input 
               type="text" 
               placeholder="FILTER LOCAL VAULT..." 
@@ -166,11 +226,11 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
             </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${editingTrack ? 'mr-96' : ''}`}>
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${editingTrack ? 'mr-96' : ''}`} style={{willChange: 'scroll-position'}}>
             <table className="w-full text-left border-collapse table-fixed">
                 <thead className="sticky top-0 bg-[#020203] z-20 border-b border-zinc-800">
                     <tr>
-                        <th className="px-6 py-3 w-12 text-center"><input type="checkbox" onChange={toggleSelectAll} className="w-3 h-3 accent-blue-600" /></th>
+                        <th className="px-6 py-3 w-12 text-center"><input type="checkbox" onChange={toggleSelectAll} checked={selectedIds.size === filteredTracks.length && filteredTracks.length > 0} className="w-3 h-3 accent-blue-600" /></th>
                         <th className="px-6 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">ID / Title</th>
                         <th className="px-6 py-3 w-24 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Source</th>
                         <th className="px-6 py-3 w-20 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Type</th>
@@ -179,83 +239,79 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                 </thead>
                 <tbody>
                     {filteredTracks.map((t) => (
-                        <tr 
-                            key={t.id} 
-                            onClick={() => setEditingTrack(t)} 
-                            className={`border-b border-zinc-900/50 hover:bg-blue-600/5 transition-colors cursor-pointer group ${editingTrack?.id === t.id ? 'bg-blue-600/10' : ''}`}
-                        >
-                            <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={selectedIds.has(t.id)} 
-                                    onChange={() => toggleSelection(t.id)}
-                                    className="w-3 h-3 accent-blue-600" 
-                                />
-                            </td>
-                            <td className="px-6 py-3">
-                                <span className="text-[10px] font-black uppercase text-zinc-300 block truncate group-hover:text-white">{t.title}</span>
-                                <span className="text-[7px] font-bold text-zinc-600 uppercase tracking-widest italic truncate">{t.artist}</span>
-                            </td>
-                            <td className="px-6 py-3">
-                                <span className={`text-[7px] font-black uppercase tracking-widest ${t.source === 'cloud' ? 'text-blue-500' : 'text-zinc-500'}`}>
-                                    {t.source === 'cloud' ? '☁ CLOUD' : '📁 LOCAL'}
-                                </span>
-                            </td>
-                            <td className="px-6 py-3">
-                                <span className={`text-[7px] font-black px-2 py-0.5 rounded-sm uppercase border ${
-                                    t.assetType === 'jingle' ? 'bg-purple-900/20 text-purple-400 border-purple-500/30' :
-                                    t.assetType === 'sweeper' ? 'bg-orange-900/20 text-orange-400 border-orange-500/30' :
-                                    t.assetType === 'id' ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' :
-                                    t.assetType === 'commercial' ? 'bg-red-900/20 text-red-400 border-red-500/30' :
-                                    'bg-blue-900/20 text-blue-400 border-blue-500/30'
-                                }`}>{CATEGORY_MAP[t.assetType] || 'MUS'}</span>
-                            </td>
-                            <td className="px-6 py-3 text-right"><span className="text-[9px] font-mono font-bold text-zinc-600 group-hover:text-blue-500 transition-colors">-{t.segueOffset?.toFixed(1) || '0.0'}s</span></td>
-                        </tr>
+                        <TrackRow 
+                          key={t.id}
+                          track={t}
+                          isSelected={selectedIds.has(t.id)}
+                          isEditing={editingTrack?.id === t.id}
+                          onToggle={toggleSelection}
+                          onClick={setEditingTrack}
+                        />
                     ))}
-                    {filteredTracks.length === 0 && (
-                        <tr>
-                            <td colSpan={5} className="p-20 text-center">
-                                <div className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800 italic">VAULT_EMPTY_OR_UNSCANNED</div>
-                            </td>
-                        </tr>
-                    )}
                 </tbody>
             </table>
         </div>
 
         {editingTrack && (
-            <div className="absolute top-0 right-0 w-96 h-full bg-[#0d0d0f] border-l border-zinc-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-                <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-black/40">
-                    <h3 className="text-[9px] font-black uppercase tracking-[0.3em] italic text-blue-500">Asset Inspector</h3>
-                    <button onClick={() => setEditingTrack(null)} className="p-2 hover:text-white transition-colors"><Icons.Maximize /></button>
+            <div className="w-96 bg-[#0a0a0c] border-l border-zinc-900 flex flex-col overflow-hidden">
+                <div className="p-6 border-b border-zinc-900 flex justify-between items-center">
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">EDIT ASSET</h2>
+                    <button onClick={() => setEditingTrack(null)} className="text-zinc-600 hover:text-white transition-colors">
+                        <Icons.X />
+                    </button>
                 </div>
-                <div className="flex-1 p-8 space-y-10 overflow-y-auto">
-                    <div className="space-y-3">
-                        <label className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.4em] block">Asset Title</label>
-                        <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 text-[11px] font-black uppercase tracking-widest text-zinc-200 outline-none focus:border-blue-600" value={editingTrack.title} onChange={e => setEditingTrack({...editingTrack, title: e.target.value.toUpperCase()})} />
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                    <div>
+                        <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Title</label>
+                        <input 
+                            type="text" 
+                            value={editingTrack.title} 
+                            onChange={(e) => setEditingTrack({...editingTrack, title: e.target.value})}
+                            className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
+                        />
                     </div>
-                    <div className="space-y-4">
-                        <label className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.4em] block italic">Segue Trim Point</label>
-                        <div className="h-48 bg-black rounded-2xl border border-zinc-800 p-6 flex items-center justify-center relative overflow-hidden">
-                             <input type="range" min="0" max="30" step="0.1" className="w-full accent-blue-600 cursor-ns-resize rotate-[-90deg] h-2 bg-zinc-900 rounded-lg appearance-none" value={editingTrack.segueOffset} onChange={e => setEditingTrack({...editingTrack, segueOffset: parseFloat(e.target.value)})} />
-                             <div className="absolute top-4 right-8 text-right">
-                                <span className="text-[8px] font-black text-zinc-800 block uppercase">Fader Level</span>
-                                <span className="text-4xl font-mono font-black text-blue-500">-{editingTrack.segueOffset.toFixed(1)}s</span>
-                             </div>
-                        </div>
+                    <div>
+                        <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Artist</label>
+                        <input 
+                            type="text" 
+                            value={editingTrack.artist} 
+                            onChange={(e) => setEditingTrack({...editingTrack, artist: e.target.value})}
+                            className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
+                        />
                     </div>
-                    <div className="space-y-4">
-                        <label className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.4em] block">Broadcast Class</label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {['music', 'jingle', 'promo', 'sweeper', 'id', 'commercial'].map(type => (
-                                <button key={type} onClick={() => setEditingTrack({...editingTrack, assetType: type as any})} className={`py-3 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${editingTrack.assetType === type ? 'bg-blue-600 border-blue-500 text-white shadow-lg' : 'bg-black border-zinc-800 text-zinc-600 hover:border-zinc-700'}`}>{CATEGORY_MAP[type] || type.toUpperCase()}</button>
-                            ))}
-                        </div>
+                    <div>
+                        <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Type</label>
+                        <select 
+                            value={editingTrack.assetType} 
+                            onChange={(e) => setEditingTrack({...editingTrack, assetType: e.target.value as any})}
+                            className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
+                        >
+                            <option value="music">Music</option>
+                            <option value="sweeper">Sweeper</option>
+                            <option value="jingle">Jingle</option>
+                            <option value="promo">Promo</option>
+                            <option value="id">Station ID</option>
+                            <option value="commercial">Commercial</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Segue Offset (s)</label>
+                        <input 
+                            type="number" 
+                            step="0.1"
+                            value={editingTrack.segueOffset || 0} 
+                            onChange={(e) => setEditingTrack({...editingTrack, segueOffset: parseFloat(e.target.value) || 0})}
+                            className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-mono text-zinc-300 outline-none focus:border-blue-600 transition-all"
+                        />
                     </div>
                 </div>
-                <div className="p-6 bg-black/60 border-t border-zinc-800 backdrop-blur-md">
-                    <button onClick={() => { updateTrack(editingTrack).then(() => { onRefresh(); setEditingTrack(null); }); }} className="w-full py-4 bg-white text-black rounded-xl font-black uppercase tracking-[0.4em] text-[9px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">COMMIT CHANGES</button>
+                <div className="p-6 border-t border-zinc-900 flex gap-3">
+                    <button onClick={handleSaveEdit} className="flex-1 bg-blue-600 text-white py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all">
+                        SAVE
+                    </button>
+                    <button onClick={() => setEditingTrack(null)} className="flex-1 bg-zinc-900 text-zinc-500 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">
+                        CANCEL
+                    </button>
                 </div>
             </div>
         )}
