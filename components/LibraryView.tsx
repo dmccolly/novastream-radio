@@ -4,7 +4,7 @@ import { Track } from '../types';
 import { Icons } from '../constants';
 import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex, saveTracksBatchAndSync, updateTrackAndSync, initializeFromDropbox, triggerSync, syncNow } from '../services/stationService';
 import { harvestDropbox } from '../services/dropboxService';
-import EditPanel from './EditPanel';
+import EditModal from './EditModal';
 
 interface LibraryViewProps {
   tracks: Track[];
@@ -397,14 +397,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
           </div>
         </div>
 
-        {editingTrack && (
-          <EditPanel
-            track={editingTrack}
-            onChange={setEditingTrack}
-            onSave={handleSaveEdit}
-            onClose={() => setEditingTrack(null)}
-          />
-        )}
+        <EditModal
+          track={editingTrack}
+          onChange={setEditingTrack}
+          onSave={handleSaveEdit}
+          onClose={() => setEditingTrack(null)}
+        />
       </div>
     </div>
   );
