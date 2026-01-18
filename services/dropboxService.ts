@@ -25,17 +25,16 @@ async function refreshSession(config: any): Promise<string> {
         throw new Error("CREDENTIALS_MISSING");
     }
 
-    const url = 'https://api.dropboxapi.com/oauth2/token';
-    const params = new URLSearchParams();
-    params.set('grant_type', 'refresh_token');
-    params.set('refresh_token', config.refreshToken);
-    params.set('client_id', config.appKey);
+    const url = '/api/refresh-token';
 
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString()
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                refreshToken: config.refreshToken,
+                appKey: config.appKey
+            })
         });
 
         const data = await response.json().catch(() => ({}));
