@@ -19,11 +19,12 @@ interface Track {
 }
 
 // Initialize Google Drive API with service account
-async function getGoogleDriveClient() {
+async function getGoogleDriveClient(context: any) {
   // Load credentials from Netlify Blobs
   const store = getStore({
     name: 'novastream',
-    siteID: 'b624300c-f3f9-44f3-b737-bdfaa637cd4c',
+    siteID: context.site?.id || 'b624300c-f3f9-44f3-b737-bdfaa637cd4c',
+    token: context.token,
   });
   const credentialsJson = await store.get('google-drive-credentials', { type: 'text' });
   
@@ -90,7 +91,7 @@ async function scanFolder(drive: any, folderId: string, basePath: string = ''): 
   return tracks;
 }
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -109,7 +110,7 @@ export const handler: Handler = async (event) => {
 
   try {
     console.log('Starting Google Drive scan...');
-    const drive = await getGoogleDriveClient();
+    const drive = await getGoogleDriveClient(context);
     const tracks = await scanFolder(drive, FOLDER_ID);
     
     console.log(`Found ${tracks.length} audio files`);
