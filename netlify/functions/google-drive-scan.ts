@@ -1,4 +1,5 @@
 import { Handler } from '@netlify/functions';
+import { getStore } from '@netlify/blobs';
 import { google } from 'googleapis';
 
 const FOLDER_ID = '1e5zYB0gtYJQt43BZS4cSZJ05E8fCuUiV';
@@ -18,10 +19,16 @@ interface Track {
 }
 
 // Initialize Google Drive API with service account
-function getGoogleDriveClient() {
-  // Read credentials from base64 encoded environment variable to avoid size limits
-  const credentialsBase64 = process.env.GOOGLE_DRIVE_CREDS_B64 || '';
-  const credentials = JSON.parse(Buffer.from(credentialsBase64, 'base64').toString('utf8'));
+async function getGoogleDriveClient() {
+  // Load credentials from Netlify Blobs
+  const store = getStore('novastream');
+  const credentialsJson = await store.get('google-drive-credentials', { type: 'text' });
+  
+  if (!credentialsJson) {
+    throw new Error('Google Drive credentials not found in Netlify Blobs');
+  }
+  
+  const credentials = JSON.parse(credentialsJson);
   
   const auth = new google.auth.GoogleAuth({
     credentials,
@@ -98,17 +105,8 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    // Check if credentials are configured
-    if (!process.env.GOOGLE_DRIVE_CREDS_B64) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Google Drive credentials not configured' }),
-      };
-    }
-
     console.log('Starting Google Drive scan...');
-    const drive = getGoogleDriveClient();
+    const drive = await getGoogleDriveClient();
     const tracks = await scanFolder(drive, FOLDER_ID);
     
     console.log(`Found ${tracks.length} audio files`);
