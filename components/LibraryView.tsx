@@ -390,7 +390,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                   isSelected={selectedIds.has(track.id)}
                   isEditing={editingTrack?.id === track.id}
                   onToggle={toggleSelection}
-                  onClick={setEditingTrack}
+                  onClick={() => {}} 
                   style={{ height: ROW_HEIGHT }}
                 />
               ))}
