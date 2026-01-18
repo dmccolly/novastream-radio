@@ -19,7 +19,9 @@ interface Track {
 
 // Initialize Google Drive API with service account
 function getGoogleDriveClient() {
-  const credentials = JSON.parse(process.env.GOOGLE_DRIVE_CREDENTIALS || '{}');
+  // Read credentials from base64 encoded environment variable to avoid size limits
+  const credentialsBase64 = process.env.GOOGLE_DRIVE_CREDS_B64 || '';
+  const credentials = JSON.parse(Buffer.from(credentialsBase64, 'base64').toString('utf8'));
   
   const auth = new google.auth.GoogleAuth({
     credentials,
@@ -97,7 +99,7 @@ export const handler: Handler = async (event) => {
 
   try {
     // Check if credentials are configured
-    if (!process.env.GOOGLE_DRIVE_CREDENTIALS) {
+    if (!process.env.GOOGLE_DRIVE_CREDS_B64) {
       return {
         statusCode: 500,
         headers,
