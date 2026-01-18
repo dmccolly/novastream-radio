@@ -336,7 +336,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
         </div>
       </div>
 
-      <div className="flex-1 bg-[#050507] rounded-xl sm:rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden flex min-h-[400px] sm:min-h-[500px] relative">
+      <div className="flex-1 bg-[#050507] rounded-xl sm:rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden flex relative">
         {isHarvesting && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[60] flex flex-col items-center justify-center p-12 text-center">
                 <div className="w-12 h-12 border-2 border-t-blue-500 border-zinc-900 rounded-full animate-spin mb-6" />
