@@ -320,14 +320,16 @@ async function debouncedSyncToDropbox(): Promise<void> {
  * Call this when the app starts
  */
 export async function initializeFromServer(): Promise<void> {
+    // ALWAYS load from IndexedDB first (primary source)
+    const localTracks = await getTracks();
+    console.log('Loaded', localTracks.length, 'tracks from IndexedDB');
+    
+    // Then try to sync with Dropbox (secondary backup)
     try {
         const dropboxTracks = await downloadIndexFromServer();
         
         if (dropboxTracks && dropboxTracks.length > 0) {
-            // Get local tracks
-            const localTracks = await getTracks();
-            
-            // If Dropbox has more tracks, use those
+            // If Dropbox has more tracks, restore them
             if (dropboxTracks.length > localTracks.length) {
                 console.log('Restoring', dropboxTracks.length, 'tracks from Dropbox');
                 await saveTracksBatch(dropboxTracks);
@@ -338,7 +340,8 @@ export async function initializeFromServer(): Promise<void> {
             }
         }
     } catch (error: any) {
-        console.error('Failed to initialize from Dropbox:', error.message);
+        console.log('Dropbox sync skipped:', error.message);
+        // IndexedDB tracks are already loaded, so this is not a fatal error
     }
 }
 
