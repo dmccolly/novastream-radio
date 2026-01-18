@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import ClockPanel from './components/ClockPanel';
 import Visualizer from './components/Visualizer';
 import LibraryView from './components/LibraryView';
+import { EditProvider } from './contexts/EditContext';
 import SchedulerView from './components/SchedulerView';
 import SettingsView from './components/SettingsView';
 import StreamerView from './components/StreamerView';
@@ -242,7 +243,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-[#020203] text-zinc-100 overflow-hidden select-none antialiased font-sans">
+    <EditProvider>
+      <div className="flex h-screen bg-[#020203] text-zinc-100 overflow-hidden select-none antialiased font-sans">
       {/* Mobile menu button */}
       <button 
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -349,6 +351,7 @@ const App: React.FC = () => {
       </main>
       <audio ref={remoteStreamRef} style={{ display: 'none' }} crossOrigin="anonymous" playsInline />
     </div>
+    </EditProvider>
   );
 };
 

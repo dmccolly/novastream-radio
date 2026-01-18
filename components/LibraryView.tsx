@@ -5,6 +5,7 @@ import { Icons } from '../constants';
 import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex, saveTracksBatchAndSync, updateTrackAndSync, initializeFromDropbox, triggerSync, syncNow } from '../services/stationService';
 import { harvestDropbox } from '../services/dropboxService';
 import EditModal from './EditModal';
+import { useEdit } from '../contexts/EditContext';
 
 interface LibraryViewProps {
   tracks: Track[];
@@ -82,7 +83,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isHarvesting, setIsHarvesting] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
-  const [editingTrack, setEditingTrack] = useState<Track | null>(null);
+  const { editingTrack, setEditingTrack } = useEdit();
   const [syncComplete, setSyncComplete] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
