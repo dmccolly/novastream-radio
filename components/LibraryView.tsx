@@ -120,11 +120,20 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
     setIsHarvesting(true);
     setLogs([]);
     setSyncComplete(false);
+    addLog(">> CONNECTING TO GOOGLE DRIVE...");
     try {
-        const results = await harvestDropbox(msg => addLog(msg));
-        if (results && results.length > 0) {
-            setCloudIndex(results);
-            setSelectedIds(new Set(results.map(t => t.id)));
+        // Use Google Drive instead of Dropbox
+        const response = await fetch('/.netlify/functions/google-drive-scan');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to scan Google Drive');
+        }
+        
+        if (data.success && data.tracks && data.tracks.length > 0) {
+            addLog(`>> FOUND ${data.tracks.length} TRACKS`);
+            setCloudIndex(data.tracks);
+            setSelectedIds(new Set(data.tracks.map((t: Track) => t.id)));
             setIsInspecting(true);
             addLog(">> VAULT: READY_TO_MOUNT");
         } else {

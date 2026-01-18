@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+google-drive-credentials.json
+
+# Local Netlify folder
+.netlify

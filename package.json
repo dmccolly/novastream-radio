@@ -11,6 +11,8 @@
   "dependencies": {
     "@google/genai": "^1.3.0",
     "@netlify/blobs": "^10.5.0",
+    "@netlify/functions": "^5.1.2",
+    "googleapis": "^170.1.0",
     "idb": "^8.0.3",
     "jszip": "^3.10.1",
     "react": "^19.0.0",
