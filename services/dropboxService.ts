@@ -21,16 +21,15 @@ export const normalizePath = (path: string): string => {
 };
 
 async function refreshSession(config: any): Promise<string> {
-    if (!config.token || !config.clientId || !config.clientSecret) {
+    if (!config.refreshToken || !config.appKey) {
         throw new Error("CREDENTIALS_MISSING");
     }
 
     const url = 'https://api.dropboxapi.com/oauth2/token';
     const params = new URLSearchParams();
     params.set('grant_type', 'refresh_token');
-    params.set('refresh_token', config.token);
-    params.set('client_id', config.clientId);
-    params.set('client_secret', config.clientSecret);
+    params.set('refresh_token', config.refreshToken);
+    params.set('client_id', config.appKey);
 
     try {
         const response = await fetch(url, {

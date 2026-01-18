@@ -3,9 +3,8 @@
  * NOVASTREAM RADIO - MASTER VAULT PROTOCOL (STABILITY V24.0)
  */
 const MASTER_VAULT = {
-    token: "sl.u.AGOq8c_r3akDKOGjf08b_xXzTHzz634OE1qRzRK0OSI02JQF6im4fuS3C_TycFaLAhaZAoRS5xxuygR1OqOwTuC7_dRUKXaqmaIckA7BfMLG2rFTFZx0hAiR6Cducnh7kk89OUMdWG_hxXQ_Uq3CAFxPRnt9LOZDqqKn4LKCEQb9sqY54WrUIJQ2yo85g0yN8E87cFitCrKKj_5OmTb67AZ2s9BIQTi9Nr0t7FS8F-SV2je1Mor6rTlTLVxAWH94iPs2Nf6GS_dqFSihgvZyzf3dmRtKxIKVMhsvo-c_ioKxsR2zOJlBIxlz7mMpokb1ar0vUfIHTh_uROX6tD4uhJZuo3MrtrU50Av68xF50y5Mut5APLTH9UVk0D0t5JH50A3va1ANsuJy9hr5xyWtNPztXUFxaRnzqCAg8WHULW1vnzG_zBK20fo3T0y8VpHqjKw5OkVyXBYM-fRhNsONWmp_vMsfqG_mz-eRAVR6akI2_0SBz8leNnG3Yo4PEjE-7IRoVQ-Z3Qkc-cf1jHx1VFLgZy3joC4kQNc2-UOcCa5gKQF1H3vy4EaTdBzY7Xo2bu8Ssn5Axf4PUdsqW43MecKUDIUI-QpAJ_b5VRoBONJT3nvR1K23PkUhsvAb8NI2hV48XqGEICCvUA2e9UmA9GO6cRM2LGPKBa3EhdbAAF5q2Jk2YHrwJH7snD_G-ehP5_Le5IE-cPRcws4NSjbDUEwczXUz2wiFcQ38uL9wz6gNHvfbrEMxof9tPYRawgzXgBS6xDwGEE1kHNM-WJz3kEpTcaTg0-C4YH8ww48ed9YG2BnXkk1Eh7VZfECc4s3w3EwrUaOSH1GkyLP288cs2kP27N9mkW03M0kn88oRty_oVEV_lm3LdYtvXIgqckpjEI-kHbVipY4HTEGqTVjSeC-yW_ofu5sAv1yF6ktVSULTvM3u3zcffp7jSzZixLsCeZ3Dz4xJC0lDV20RKKP_HZDjKJq-reW5yqMMTjP-clps6D-rvSlUsI9b555ZMwtV47fLtbJL1-kUXc4-uvKyiwVZr-L3r5XSKOz8t9GcBVsUWtEHCMpXzx6ywFztFiP5FEXpft67FpCnxYjAXUFIUA4nO9rQySNpsGr-Xh-BwpAC0NGh7eOF5IWrQZ39XoshtdovzPKvHhnG-E1xDh7W8em7ACufKemyho8C7tbFKJbL00hqi01upRScwzZy5EXDUlMFmim3GL9YHdKuhQfJ_6OIph7oYQ4f0BmWSZSeAqkmUis1YRZZjc__3Is44jNzx_o",
-    clientId: "80tozg97nbba9bs",
-    clientSecret: "plx6g6leszcphkg",
+    refreshToken: "6m15zfwc2n0AAAAAAAAAAaX7CGjJlunzfehGJT4VPtlH-NR_K8emPXK06WH0oO4W",
+    appKey: "caancy1ps7n1jgs",
     root: "/"
 };
 
@@ -21,10 +20,9 @@ let syncTimeout: number | null = null;
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 export interface VaultConfig {
-    token: string;
+    refreshToken: string;
+    appKey: string;
     root: string;
-    clientId: string;
-    clientSecret: string;
     lastVerified?: number;
 }
 
