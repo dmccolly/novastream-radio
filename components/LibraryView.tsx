@@ -73,7 +73,6 @@ const TrackRow = memo(({
 });
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
@@ -90,21 +89,25 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
-  // Debounced search - updates after 150ms of no typing
-  useEffect(() => {
+  // Direct debounced search handler - no state updates until debounce completes
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
+      setDebouncedSearch(value);
     }, 150);
+  }, []);
+
+  useEffect(() => {
     
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery]);
+  }, []);
 
   // Show warning if no tracks
   useEffect(() => {
@@ -309,8 +312,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
               type="text" 
               placeholder="FILTER LOCAL VAULT..." 
               className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 sm:px-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
+              onChange={handleSearchChange} 
+              defaultValue=""
           />
         </div>
         <div className="flex flex-wrap gap-2">
