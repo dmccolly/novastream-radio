@@ -56,13 +56,20 @@ async function refreshSession(config: any): Promise<string> {
 
 async function getValidSessionToken(): Promise<string> {
     const config = getFullConfig();
+    
+    // If token starts with 'sl.', it's a long-lived access token - use directly
+    if (config.token && config.token.startsWith('sl.')) {
+        console.log('Using long-lived access token directly');
+        return config.token;
+    }
+    
     // If we have a valid session token, use it.
     if (sessionAccessToken && Date.now() < sessionExpiryTime) return sessionAccessToken;
     
     try {
         return await refreshSession(config);
     } catch (e: any) {
-        // Fallback: If refresh fails, try using the provided token directly (it might be a long-lived access token)
+        // Fallback: If refresh fails, try using the provided token directly
         console.warn("Refresh failed, attempting direct token access fallback...");
         return config.token;
     }
