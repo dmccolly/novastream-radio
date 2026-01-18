@@ -74,6 +74,8 @@ const TrackRow = memo(({
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
   const [cloudIndex, setCloudIndex] = useState<Track[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -88,7 +90,21 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
-  // No debounce - instant search
+  // Debounced search - updates after 150ms of no typing
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 150);
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   // Show warning if no tracks
   useEffect(() => {
