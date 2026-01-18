@@ -37,6 +37,7 @@ const SchedulerView: React.FC = () => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [activeTab, setActiveTab] = useState<'clocks' | 'rules' | 'schedule'>('clocks');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Clock editor state
   const [isEditingClock, setIsEditingClock] = useState(false);
@@ -50,393 +51,408 @@ const SchedulerView: React.FC = () => {
   // Rule editor state
   const [isEditingRule, setIsEditingRule] = useState(false);
   const [editRuleName, setEditRuleName] = useState('');
-  const [editRuleType, setEditRuleType] = useState<'artist' | 'category' | 'track'>('artist');
+  const [editRuleCategory, setEditRuleCategory] = useState('');
   const [editRuleMinutes, setEditRuleMinutes] = useState(60);
+  const [editRuleEnabled, setEditRuleEnabled] = useState(true);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    const [clocksData, rulesData, tracksData] = await Promise.all([
-      getAllClocks(),
-      getAllSeparationRules(),
-      getTracks(),
-    ]);
-    setClocks(clocksData);
-    setRules(rulesData);
-    setTracks(tracksData);
-    
-    if (clocksData.length > 0 && !selectedClock) {
-      setSelectedClock(clocksData[0]);
+  // Initialize default data on mount
+  useEffect(() => {
+    initializeDefaultData();
+  }, []);
+
+  // Lazy load data based on active tab
+  const loadClocks = useCallback(async () => {
+    const allClocks = await getAllClocks();
+    setClocks(allClocks);
+    if (allClocks.length > 0 && !selectedClock) {
+      setSelectedClock(allClocks[0]);
     }
   }, [selectedClock]);
 
-  useEffect(() => {
-    initializeDefaultData().then(() => loadData());
+  const loadRules = useCallback(async () => {
+    const allRules = await getAllSeparationRules();
+    setRules(allRules);
   }, []);
 
+  const loadSchedule = useCallback(async () => {
+    const entries = await getScheduleEntries();
+    setSchedule(entries);
+  }, []);
+
+  const loadTracks = useCallback(async () => {
+    if (tracks.length === 0) {
+      const allTracks = await getTracks();
+      setTracks(allTracks);
+    }
+  }, [tracks.length]);
+
+  // Load data when tab changes
+  useEffect(() => {
+    setIsLoading(true);
+    if (activeTab === 'clocks') {
+      loadClocks().finally(() => setIsLoading(false));
+    } else if (activeTab === 'rules') {
+      loadRules().finally(() => setIsLoading(false));
+    } else if (activeTab === 'schedule') {
+      loadSchedule().finally(() => setIsLoading(false));
+    }
+  }, [activeTab, loadClocks, loadRules, loadSchedule]);
+
   const handleCreateClock = async () => {
-    if (!editClockName.trim()) return;
-    const newClock = createClock(editClockName, editClockDesc);
-    await saveClock(newClock);
-    await loadData();
-    setIsEditingClock(false);
-    setEditClockName('');
-    setEditClockDesc('');
+    const newClock = await createClock('New Clock', 'Description');
+    await loadClocks();
     setSelectedClock(newClock);
   };
 
-  const handleDeleteClock = async (id: string) => {
-    if (!confirm('Delete this clock?')) return;
-    await deleteClock(id);
-    await loadData();
-    if (selectedClock?.id === id) {
-      setSelectedClock(null);
+  const handleSaveClock = async () => {
+    if (!selectedClock) return;
+    const updated = { ...selectedClock, name: editClockName, description: editClockDesc };
+    await saveClock(updated);
+    await loadClocks();
+    setSelectedClock(updated);
+    setIsEditingClock(false);
+  };
+
+  const handleDeleteClock = async (clockId: string) => {
+    await deleteClock(clockId);
+    await loadClocks();
+    if (selectedClock?.id === clockId) {
+      setSelectedClock(clocks[0] || null);
     }
   };
 
   const handleAddElement = async () => {
     if (!selectedClock) return;
-    const updated = addElementToClock(selectedClock, {
-      type: newElementType,
-      position: newElementPosition,
-    });
-    await saveClock(updated);
-    setSelectedClock(updated);
-    await loadData();
+    await addElementToClock(selectedClock.id, newElementType, newElementPosition);
+    await loadClocks();
+    const updated = clocks.find(c => c.id === selectedClock.id);
+    if (updated) setSelectedClock(updated);
   };
 
   const handleRemoveElement = async (elementId: string) => {
     if (!selectedClock) return;
-    const updated = removeElementFromClock(selectedClock, elementId);
-    await saveClock(updated);
-    setSelectedClock(updated);
-    await loadData();
+    await removeElementFromClock(selectedClock.id, elementId);
+    await loadClocks();
+    const updated = clocks.find(c => c.id === selectedClock.id);
+    if (updated) setSelectedClock(updated);
   };
 
   const handleCreateRule = async () => {
-    if (!editRuleName.trim()) return;
-    const newRule = createSeparationRule(editRuleName, editRuleType, editRuleMinutes);
-    await saveSeparationRule(newRule);
-    await loadData();
-    setIsEditingRule(false);
-    setEditRuleName('');
-    setEditRuleMinutes(60);
+    await createSeparationRule('New Rule', 'artist', 60, true);
+    await loadRules();
   };
 
-  const handleToggleRule = async (rule: SeparationRule) => {
-    const updated = { ...rule, enabled: !rule.enabled };
+  const handleEditRule = (rule: SeparationRule) => {
+    setEditingRuleId(rule.id);
+    setEditRuleName(rule.name);
+    setEditRuleCategory(rule.category);
+    setEditRuleMinutes(rule.separationMinutes);
+    setEditRuleEnabled(rule.enabled);
+    setIsEditingRule(true);
+  };
+
+  const handleSaveRule = async () => {
+    if (!editingRuleId) return;
+    const updated: SeparationRule = {
+      id: editingRuleId,
+      name: editRuleName,
+      category: editRuleCategory,
+      separationMinutes: editRuleMinutes,
+      enabled: editRuleEnabled,
+    };
     await saveSeparationRule(updated);
-    await loadData();
+    await loadRules();
+    setIsEditingRule(false);
+    setEditingRuleId(null);
   };
 
-  const handleDeleteRule = async (id: string) => {
-    if (!confirm('Delete this rule?')) return;
-    await deleteSeparationRule(id);
-    await loadData();
+  const handleDeleteRule = async (ruleId: string) => {
+    await deleteSeparationRule(ruleId);
+    await loadRules();
   };
 
   const handleGenerateSchedule = async () => {
-    if (!selectedClock) {
-      alert('Please select a clock first');
-      return;
-    }
-    if (tracks.length === 0) {
-      alert('No tracks available. Please scan your library first.');
+    setIsGenerating(true);
+    await loadTracks();
+    await loadClocks();
+    await loadRules();
+    
+    if (clocks.length === 0) {
+      alert('No clocks available. Create a clock first.');
+      setIsGenerating(false);
       return;
     }
     
-    setIsGenerating(true);
-    try {
-      const startTime = Date.now();
-      const hours = 24; // Generate 24 hours
-      await clearSchedule();
-      await generateSchedule(selectedClock, startTime, hours, tracks, rules);
-      
-      // Load generated schedule
-      const entries = await getScheduleEntries(startTime, startTime + (hours * 60 * 60 * 1000));
-      setSchedule(entries);
-      setActiveTab('schedule');
-    } catch (e: any) {
-      alert(`Failed to generate schedule: ${e.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
+    await clearSchedule();
+    await generateSchedule(clocks[0].id, tracks, rules);
+    await loadSchedule();
+    setIsGenerating(false);
+    setActiveTab('schedule');
   };
 
-  const loadSchedule = async () => {
-    const now = Date.now();
-    const entries = await getScheduleEntries(now - (12 * 60 * 60 * 1000), now + (24 * 60 * 60 * 1000));
-    setSchedule(entries);
+  const startEditClock = () => {
+    if (!selectedClock) return;
+    setEditClockName(selectedClock.name);
+    setEditClockDesc(selectedClock.description);
+    setIsEditingClock(true);
   };
-
-  useEffect(() => {
-    if (activeTab === 'schedule') {
-      loadSchedule();
-    }
-  }, [activeTab]);
-
-  const trackMap = new Map(tracks.map(t => [t.id, t]));
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="h-full flex flex-col bg-zinc-900">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black uppercase tracking-wider text-zinc-100">Scheduler</h1>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mt-1">Clock Templates & Automation Rules</p>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{Icons.scheduler}</span>
+          <h2 className="text-xl font-semibold text-white">Scheduler</h2>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleGenerateSchedule}
-            disabled={isGenerating || !selectedClock}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? 'GENERATING...' : 'Generate Schedule'}
-          </button>
-        </div>
+        <button
+          onClick={handleGenerateSchedule}
+          disabled={isGenerating}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white rounded-lg transition-colors"
+        >
+          {isGenerating ? 'Generating...' : 'Generate 24hr Schedule'}
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab('clocks')}
-          className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'clocks'
-              ? 'bg-blue-600 text-white'
-              : 'bg-zinc-900 text-zinc-500 hover:text-white'
-          }`}
-        >
-          Clocks
-        </button>
-        <button
-          onClick={() => setActiveTab('rules')}
-          className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'rules'
-              ? 'bg-blue-600 text-white'
-              : 'bg-zinc-900 text-zinc-500 hover:text-white'
-          }`}
-        >
-          Separation Rules
-        </button>
-        <button
-          onClick={() => setActiveTab('schedule')}
-          className={`px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'schedule'
-              ? 'bg-blue-600 text-white'
-              : 'bg-zinc-900 text-zinc-500 hover:text-white'
-          }`}
-        >
-          Schedule
-        </button>
+      <div className="flex gap-1 px-6 pt-4 border-b border-zinc-800">
+        {(['clocks', 'rules', 'schedule'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-t-lg transition-colors capitalize ${
+              activeTab === tab
+                ? 'bg-zinc-800 text-white'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
       </div>
 
       {/* Content */}
-      <div className="flex-1 bg-[#050507] rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden p-8">
-        {activeTab === 'clocks' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+      <div className="flex-1 overflow-auto p-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-zinc-400">Loading...</div>
+          </div>
+        ) : activeTab === 'clocks' ? (
+          <div className="grid grid-cols-12 gap-6">
             {/* Clock List */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Clock Templates</h2>
+            <div className="col-span-4 space-y-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Clocks</h3>
                 <button
-                  onClick={() => setIsEditingClock(true)}
-                  className="text-blue-400 hover:text-blue-300 transition-colors"
+                  onClick={handleCreateClock}
+                  className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
                 >
-                  <Icons.Plus />
+                  + New
                 </button>
               </div>
-
-              {isEditingClock && (
-                <div className="bg-[#0a0a0c] border border-zinc-800 rounded-xl p-4 space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Clock Name"
-                    value={editClockName}
-                    onChange={(e) => setEditClockName(e.target.value)}
-                    className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={editClockDesc}
-                    onChange={(e) => setEditClockDesc(e.target.value)}
-                    className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] text-zinc-300 outline-none focus:border-blue-600"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleCreateClock}
-                      className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-widest"
-                    >
-                      Create
-                    </button>
-                    <button
-                      onClick={() => setIsEditingClock(false)}
-                      className="flex-1 bg-zinc-900 text-zinc-500 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+              {clocks.map((clock) => (
+                <div
+                  key={clock.id}
+                  onClick={() => setSelectedClock(clock)}
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    selectedClock?.id === clock.id
+                      ? 'bg-zinc-800 border-blue-500'
+                      : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="font-semibold text-white">{clock.name}</div>
+                  <div className="text-sm text-zinc-400">{clock.description}</div>
+                  <div className="text-xs text-zinc-500 mt-1">{clock.elements.length} elements</div>
                 </div>
-              )}
-
-              <div className="space-y-2 overflow-y-auto max-h-[600px] custom-scrollbar">
-                {clocks.map((clock) => (
-                  <div
-                    key={clock.id}
-                    onClick={() => setSelectedClock(clock)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      selectedClock?.id === clock.id
-                        ? 'bg-blue-600/10 border-blue-500/30'
-                        : 'bg-[#0a0a0c] border-zinc-800 hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-[10px] font-black uppercase text-zinc-300">{clock.name}</h3>
-                        {clock.description && (
-                          <p className="text-[8px] text-zinc-600 mt-1">{clock.description}</p>
-                        )}
-                        <p className="text-[7px] text-zinc-700 mt-2">{clock.elements.length} elements</p>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClock(clock.id);
-                        }}
-                        className="text-zinc-600 hover:text-red-400 transition-colors"
-                      >
-                        <Icons.Trash />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
 
             {/* Clock Editor */}
-            {selectedClock && (
-              <div className="lg:col-span-2 space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-[12px] font-black uppercase tracking-wider text-zinc-300">{selectedClock.name}</h2>
-                    <p className="text-[8px] text-zinc-600 mt-1">{selectedClock.description}</p>
-                  </div>
-                </div>
-
-                {/* Add Element */}
-                <div className="bg-[#0a0a0c] border border-zinc-800 rounded-xl p-4">
-                  <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-3">Add Element</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <select
-                      value={newElementType}
-                      onChange={(e) => setNewElementType(e.target.value as ElementType)}
-                      className="bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600"
-                    >
-                      <option value="music">Music</option>
-                      <option value="jingle">Jingle</option>
-                      <option value="sweeper">Sweeper</option>
-                      <option value="promo">Promo</option>
-                      <option value="id">Station ID</option>
-                      <option value="commercial">Commercial</option>
-                      <option value="break">Break</option>
-                    </select>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      value={newElementPosition}
-                      onChange={(e) => setNewElementPosition(parseInt(e.target.value) || 0)}
-                      placeholder="Minute"
-                      className="bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-mono text-zinc-300 outline-none focus:border-blue-600"
-                    />
-                    <button
-                      onClick={handleAddElement}
-                      className="bg-blue-600 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-blue-500"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-
-                {/* Clock Timeline */}
-                <div className="bg-[#0a0a0c] border border-zinc-800 rounded-xl p-6">
-                  <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-4">Hour Timeline</h3>
-                  <div className="space-y-2">
-                    {selectedClock.elements.map((element) => (
-                      <div
-                        key={element.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${ELEMENT_COLORS[element.type]}`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <span className="text-[10px] font-mono font-black">:{element.position.toString().padStart(2, '0')}</span>
-                          <span className="text-[9px] font-black uppercase tracking-widest">{element.type}</span>
+            <div className="col-span-8">
+              {selectedClock ? (
+                <div className="space-y-6">
+                  {/* Clock Info */}
+                  <div className="bg-zinc-800 rounded-lg p-6">
+                    {isEditingClock ? (
+                      <div className="space-y-4">
+                        <input
+                          type="text"
+                          value={editClockName}
+                          onChange={(e) => setEditClockName(e.target.value)}
+                          className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                          placeholder="Clock Name"
+                        />
+                        <input
+                          type="text"
+                          value={editClockDesc}
+                          onChange={(e) => setEditClockDesc(e.target.value)}
+                          className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                          placeholder="Description"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleSaveClock}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setIsEditingClock(false)}
+                            className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors"
+                          >
+                            Cancel
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleRemoveElement(element.id)}
-                          className="text-zinc-600 hover:text-red-400 transition-colors"
-                        >
-                          <Icons.X />
-                        </button>
                       </div>
-                    ))}
-                    {selectedClock.elements.length === 0 && (
-                      <p className="text-center text-zinc-700 text-[9px] py-8">No elements yet. Add some above.</p>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xl font-bold text-white">{selectedClock.name}</h3>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={startEditClock}
+                              className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClock(selectedClock.id)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-zinc-400">{selectedClock.description}</p>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
-        {activeTab === 'rules' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Separation Rules</h2>
+                  {/* Add Element */}
+                  <div className="bg-zinc-800 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Add Element</h4>
+                    <div className="flex gap-4">
+                      <select
+                        value={newElementType}
+                        onChange={(e) => setNewElementType(e.target.value as ElementType)}
+                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                      >
+                        <option value="music">Music</option>
+                        <option value="jingle">Jingle</option>
+                        <option value="sweeper">Sweeper</option>
+                        <option value="promo">Promo</option>
+                        <option value="id">Station ID</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="break">Break</option>
+                      </select>
+                      <input
+                        type="number"
+                        value={newElementPosition}
+                        onChange={(e) => setNewElementPosition(parseInt(e.target.value))}
+                        className="w-24 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                        placeholder="Min"
+                      />
+                      <button
+                        onClick={handleAddElement}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Elements Timeline */}
+                  <div className="bg-zinc-800 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">Clock Elements</h4>
+                    <div className="space-y-2">
+                      {selectedClock.elements
+                        .sort((a, b) => a.position - b.position)
+                        .map((element) => (
+                          <div
+                            key={element.id}
+                            className={`flex items-center justify-between p-3 rounded border ${ELEMENT_COLORS[element.type]}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-mono">{element.position}:00</span>
+                              <span className="font-semibold capitalize">{element.type}</span>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveElement(element.id)}
+                              className="px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64 text-zinc-400">
+                  Select a clock to edit
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'rules' ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Separation Rules</h3>
               <button
-                onClick={() => setIsEditingRule(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-blue-500"
+                onClick={handleCreateRule}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded transition-colors"
               >
-                Add Rule
+                + New Rule
               </button>
             </div>
 
             {isEditingRule && (
-              <div className="bg-[#0a0a0c] border border-zinc-800 rounded-xl p-6 space-y-4">
+              <div className="bg-zinc-800 rounded-lg p-6 space-y-4">
+                <h4 className="text-lg font-semibold text-white">Edit Rule</h4>
                 <input
                   type="text"
-                  placeholder="Rule Name"
                   value={editRuleName}
                   onChange={(e) => setEditRuleName(e.target.value)}
-                  className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600"
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                  placeholder="Rule Name"
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <select
-                    value={editRuleType}
-                    onChange={(e) => setEditRuleType(e.target.value as any)}
-                    className="bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600"
-                  >
-                    <option value="artist">Artist</option>
-                    <option value="category">Category</option>
-                    <option value="track">Track</option>
-                  </select>
+                <input
+                  type="text"
+                  value={editRuleCategory}
+                  onChange={(e) => setEditRuleCategory(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                  placeholder="Category (artist, track, jingle, etc.)"
+                />
+                <input
+                  type="number"
+                  value={editRuleMinutes}
+                  onChange={(e) => setEditRuleMinutes(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-white"
+                  placeholder="Separation (minutes)"
+                />
+                <label className="flex items-center gap-2 text-white">
                   <input
-                    type="number"
-                    min="1"
-                    value={editRuleMinutes}
-                    onChange={(e) => setEditRuleMinutes(parseInt(e.target.value) || 60)}
-                    placeholder="Minutes"
-                    className="bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-mono text-zinc-300 outline-none focus:border-blue-600"
+                    type="checkbox"
+                    checked={editRuleEnabled}
+                    onChange={(e) => setEditRuleEnabled(e.target.checked)}
+                    className="w-4 h-4"
                   />
-                </div>
+                  Enabled
+                </label>
                 <div className="flex gap-2">
                   <button
-                    onClick={handleCreateRule}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    onClick={handleSaveRule}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                   >
-                    Create
+                    Save
                   </button>
                   <button
-                    onClick={() => setIsEditingRule(false)}
-                    className="flex-1 bg-zinc-900 text-zinc-500 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    onClick={() => {
+                      setIsEditingRule(false);
+                      setEditingRuleId(null);
+                    }}
+                    className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors"
                   >
                     Cancel
                   </button>
@@ -444,97 +460,98 @@ const SchedulerView: React.FC = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid gap-4">
               {rules.map((rule) => (
                 <div
                   key={rule.id}
-                  className="bg-[#0a0a0c] border border-zinc-800 rounded-xl p-4 space-y-3"
+                  className={`p-4 rounded-lg border ${
+                    rule.enabled ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-800/50 border-zinc-800'
+                  }`}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-[10px] font-black uppercase text-zinc-300">{rule.name}</h3>
-                      <p className="text-[8px] text-zinc-600 mt-1">
-                        {rule.type} • {rule.minMinutes} min
+                      <div className="flex items-center gap-3">
+                        <h4 className="font-semibold text-white">{rule.name}</h4>
+                        {!rule.enabled && (
+                          <span className="text-xs px-2 py-1 bg-zinc-700 text-zinc-400 rounded">
+                            Disabled
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-400 mt-1">
+                        Category: <span className="text-white">{rule.category}</span> • Separation:{' '}
+                        <span className="text-white">{rule.separationMinutes} minutes</span>
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteRule(rule.id)}
-                      className="text-zinc-600 hover:text-red-400 transition-colors"
-                    >
-                      <Icons.Trash />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditRule(rule)}
+                        className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRule(rule.id)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleToggleRule(rule)}
-                    className={`w-full py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                      rule.enabled
-                        ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-zinc-900 text-zinc-600 border border-zinc-800'
-                    }`}
-                  >
-                    {rule.enabled ? 'Enabled' : 'Disabled'}
-                  </button>
                 </div>
               ))}
             </div>
           </div>
-        )}
-
-        {activeTab === 'schedule' && (
+        ) : (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Generated Schedule</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">Generated Schedule</h3>
               <button
-                onClick={loadSchedule}
-                className="px-4 py-2 bg-zinc-900 text-zinc-500 rounded-lg text-[9px] font-black uppercase tracking-widest hover:text-white"
+                onClick={() => clearSchedule().then(loadSchedule)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
               >
-                Refresh
+                Clear Schedule
               </button>
             </div>
 
-            <div className="overflow-y-auto max-h-[700px] custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-[#020203] z-10 border-b border-zinc-800">
-                  <tr>
-                    <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Time</th>
-                    <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Track</th>
-                    <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Artist</th>
-                    <th className="px-4 py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-600">Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schedule.map((entry) => {
-                    const track = trackMap.get(entry.trackId);
-                    const time = new Date(entry.scheduledTime);
-                    return (
-                      <tr key={entry.id} className="border-b border-zinc-900/50 hover:bg-blue-600/5">
-                        <td className="px-4 py-3 text-[9px] font-mono text-zinc-500">
-                          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="px-4 py-3 text-[10px] font-bold uppercase text-zinc-300">
-                          {track?.title || 'Unknown'}
-                        </td>
-                        <td className="px-4 py-3 text-[9px] text-zinc-600">
-                          {track?.artist || 'Unknown'}
+            {schedule.length === 0 ? (
+              <div className="flex items-center justify-center h-64 text-zinc-400">
+                No schedule generated. Click "Generate 24hr Schedule" to create one.
+              </div>
+            ) : (
+              <div className="bg-zinc-800 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-zinc-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-white">Time</th>
+                      <th className="px-4 py-3 text-left text-white">Type</th>
+                      <th className="px-4 py-3 text-left text-white">Content</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {schedule.map((entry, idx) => (
+                      <tr key={idx} className="border-t border-zinc-700">
+                        <td className="px-4 py-3 text-white font-mono">
+                          {new Date(entry.scheduledTime).toLocaleTimeString()}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-[7px] font-black uppercase tracking-widest px-2 py-1 rounded ${
-                            track ? ELEMENT_COLORS[track.assetType] : 'bg-zinc-900 text-zinc-600'
-                          }`}>
-                            {track?.assetType || 'UNK'}
+                          <span
+                            className={`px-2 py-1 rounded text-sm capitalize ${
+                              ELEMENT_COLORS[entry.type as ElementType]
+                            }`}
+                          >
+                            {entry.type}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-zinc-300">
+                          {entry.trackId ? `Track: ${entry.trackId.slice(0, 8)}...` : 'N/A'}
+                        </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {schedule.length === 0 && (
-                <p className="text-center text-zinc-700 text-[9px] py-12">
-                  No schedule generated yet. Click "Generate Schedule" above.
-                </p>
-              )}
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

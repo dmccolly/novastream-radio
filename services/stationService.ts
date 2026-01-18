@@ -16,7 +16,7 @@ const CONFIG_KEY = 'STATION_CONFIG_FINAL';
 const DROPBOX_INDEX_PATH = '/novastream_track_index.json';
 const SYNC_DEBOUNCE_MS = 2000; // Wait 2s after last change before syncing
 
-let syncTimeout: NodeJS.Timeout | null = null;
+let syncTimeout: number | null = null;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -307,7 +307,7 @@ async function debouncedSyncToDropbox(): Promise<void> {
         clearTimeout(syncTimeout);
     }
 
-    syncTimeout = setTimeout(async () => {
+    syncTimeout = window.setTimeout(async () => {
         const tracks = await getTracks();
         await uploadIndexToDropbox(tracks);
     }, SYNC_DEBOUNCE_MS);
@@ -343,7 +343,7 @@ export async function initializeFromDropbox(): Promise<void> {
 /**
  * Enhanced saveTracksBatch with auto-sync
  */
-export const saveTracksBatchWithSync = async (tracks: any[]) => {
+export const saveTracksBatchAndSync = async (tracks: any[]) => {
     await saveTracksBatch(tracks);
     await debouncedSyncToDropbox();
 };
@@ -351,10 +351,17 @@ export const saveTracksBatchWithSync = async (tracks: any[]) => {
 /**
  * Enhanced updateTrack with auto-sync
  */
-export const updateTrackWithSync = async (track: any) => {
+export const updateTrackAndSync = async (track: any) => {
     await updateTrack(track);
     await debouncedSyncToDropbox();
 };
+
+/**
+ * Trigger sync (for use after operations)
+ */
+export async function triggerSync(): Promise<void> {
+    await debouncedSyncToDropbox();
+}
 
 /**
  * Manual sync trigger
