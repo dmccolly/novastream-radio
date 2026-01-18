@@ -1,7 +1,6 @@
 [build]
   command = "pnpm install && pnpm run build"
   publish = "dist"
-  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22"
@@ -18,5 +17,3 @@
   to = "/index.html"
   status = 200
 
-[functions]
-  node_bundler = "esbuild"
