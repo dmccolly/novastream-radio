@@ -73,8 +73,7 @@ const TrackRow = memo(({
 });
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
-  const [localSearch, setLocalSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isInspecting, setIsInspecting] = useState(false);
   const [cloudIndex, setCloudIndex] = useState<Track[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -89,13 +88,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
-  // Debounce search to prevent lag
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(localSearch);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [localSearch]);
+  // No debounce - instant search
 
   // Show warning if no tracks
   useEffect(() => {
@@ -193,7 +186,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   };
 
   const filteredTracks = useMemo(() => {
-    const term = debouncedSearch.toLowerCase().trim();
+    const term = searchQuery.toLowerCase().trim();
     const baseList = isInspecting ? cloudIndex : tracks;
     if (!term) return baseList;
     return baseList.filter(t => {
@@ -208,7 +201,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
       ].join(' ').toLowerCase();
       return searchableText.includes(term);
     });
-  }, [isInspecting, cloudIndex, tracks, debouncedSearch]);
+  }, [isInspecting, cloudIndex, tracks, searchQuery]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -300,8 +293,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
               type="text" 
               placeholder="FILTER LOCAL VAULT..." 
               className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-6 text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
-              value={localSearch} 
-              onChange={(e) => setLocalSearch(e.target.value)} 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
           />
         </div>
         <div className="flex gap-2">
