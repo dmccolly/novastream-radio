@@ -74,6 +74,7 @@ const TrackRow = memo(({
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [localSearch, setLocalSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isInspecting, setIsInspecting] = useState(false);
   const [cloudIndex, setCloudIndex] = useState<Track[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -87,6 +88,14 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const [scrollTop, setScrollTop] = useState(0);
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
+
+  // Debounce search to prevent lag
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(localSearch);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
 
   // Show warning if no tracks
   useEffect(() => {
@@ -184,11 +193,22 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   };
 
   const filteredTracks = useMemo(() => {
-    const term = localSearch.toLowerCase().trim();
+    const term = debouncedSearch.toLowerCase().trim();
     const baseList = isInspecting ? cloudIndex : tracks;
     if (!term) return baseList;
-    return baseList.filter(t => t.title.toLowerCase().includes(term) || t.artist.toLowerCase().includes(term));
-  }, [isInspecting, cloudIndex, tracks, localSearch]);
+    return baseList.filter(t => {
+      const searchableText = [
+        t.title,
+        t.artist,
+        t.album || '',
+        t.assetType,
+        t.source,
+        t.id,
+        CATEGORY_MAP[t.assetType] || ''
+      ].join(' ').toLowerCase();
+      return searchableText.includes(term);
+    });
+  }, [isInspecting, cloudIndex, tracks, debouncedSearch]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds(prev => {
