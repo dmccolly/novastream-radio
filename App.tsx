@@ -18,7 +18,7 @@ import {
   setMasterStream,
   connectToNode,
   getFullConfig,
-  initializeFromDropbox
+  initializeFromServer
 } from './services/stationService';
 import { getStreamUrl } from './services/dropboxService';
 import { Track } from './types';
@@ -192,7 +192,7 @@ const App: React.FC = () => {
           requestPersistence();
           
           // Initialize from Dropbox first
-          await initializeFromDropbox();
+          await initializeFromServer();
           
           const config = getFullConfig();
           let currentTracks = await getTracks();
@@ -207,7 +207,7 @@ const App: React.FC = () => {
           // Listen for token updates and reload tracks
           window.addEventListener('reload-tracks-from-dropbox', async () => {
             addLog('>> VAULT: RELOADING_FROM_DROPBOX...');
-            await initializeFromDropbox();
+            await initializeFromServer();
             const reloadedTracks = await getTracks();
             setTracks(reloadedTracks);
             addLog(`>> VAULT: LOADED ${reloadedTracks.length} TRACKS`);

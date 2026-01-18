@@ -220,13 +220,7 @@ export const requestPersistence = async () => {
 /**
  * Upload track index to Dropbox
  */
-async function uploadIndexToDropbox(tracks: any[]): Promise<void> {
-    const config = getFullConfig();
-    if (!config.token) {
-        console.warn('No Dropbox token configured, skipping sync');
-        return;
-    }
-
+async function uploadIndexToServer(tracks: any[]): Promise<void> {
     try {
         const indexData = {
             version: 1,
@@ -235,65 +229,43 @@ async function uploadIndexToDropbox(tracks: any[]): Promise<void> {
             trackCount: tracks.length,
         };
 
-        const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+        const response = await fetch('/api/track-index', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${config.token}`,
-                'Content-Type': 'application/octet-stream',
-                'Dropbox-API-Arg': JSON.stringify({
-                    path: DROPBOX_INDEX_PATH,
-                    mode: 'overwrite',
-                    autorename: false,
-                    mute: true,
-                }),
-            },
-            body: JSON.stringify(indexData, null, 2),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(indexData),
         });
 
         if (!response.ok) {
-            throw new Error(`Dropbox upload failed: ${response.status}`);
+            throw new Error(`Server upload failed: ${response.status}`);
         }
 
-        console.log('✓ Track index synced to Dropbox:', tracks.length, 'tracks');
+        console.log('✓ Track index synced to server:', tracks.length, 'tracks');
     } catch (error: any) {
-        console.error('Failed to sync to Dropbox:', error.message);
+        console.error('Failed to sync to server:', error.message);
     }
 }
 
 /**
  * Download track index from Dropbox
  */
-async function downloadIndexFromDropbox(): Promise<any[] | null> {
-    const config = getFullConfig();
-    if (!config.token) {
-        return null;
-    }
-
+async function downloadIndexFromServer(): Promise<any[] | null> {
     try {
-        const response = await fetch('https://content.dropboxapi.com/2/files/download', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${config.token}`,
-                'Dropbox-API-Arg': JSON.stringify({
-                    path: DROPBOX_INDEX_PATH,
-                }),
-            },
+        const response = await fetch('/api/track-index', {
+            method: 'GET',
         });
 
-        if (response.status === 409) {
-            // File doesn't exist yet
-            return null;
-        }
-
         if (!response.ok) {
-            throw new Error(`Dropbox download failed: ${response.status}`);
+            throw new Error(`Server download failed: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log('✓ Track index loaded from Dropbox:', data.trackCount, 'tracks');
-        return data.tracks || [];
+        if (data.tracks && data.tracks.length > 0) {
+            console.log('✓ Track index loaded from server:', data.trackCount, 'tracks');
+            return data.tracks;
+        }
+        return null;
     } catch (error: any) {
-        console.error('Failed to load from Dropbox:', error.message);
+        console.error('Failed to load from server:', error.message);
         return null;
     }
 }
@@ -309,7 +281,7 @@ async function debouncedSyncToDropbox(): Promise<void> {
 
     syncTimeout = window.setTimeout(async () => {
         const tracks = await getTracks();
-        await uploadIndexToDropbox(tracks);
+        await uploadIndexToServer(tracks);
     }, SYNC_DEBOUNCE_MS);
 }
 
@@ -317,9 +289,9 @@ async function debouncedSyncToDropbox(): Promise<void> {
  * Initialize: Load from Dropbox on startup
  * Call this when the app starts
  */
-export async function initializeFromDropbox(): Promise<void> {
+export async function initializeFromServer(): Promise<void> {
     try {
-        const dropboxTracks = await downloadIndexFromDropbox();
+        const dropboxTracks = await downloadIndexFromServer();
         
         if (dropboxTracks && dropboxTracks.length > 0) {
             // Get local tracks
@@ -332,7 +304,7 @@ export async function initializeFromDropbox(): Promise<void> {
             } else if (localTracks.length > dropboxTracks.length) {
                 // Local has more, sync to Dropbox
                 console.log('Uploading', localTracks.length, 'local tracks to Dropbox');
-                await uploadIndexToDropbox(localTracks);
+                await uploadIndexToServer(localTracks);
             }
         }
     } catch (error: any) {
@@ -368,7 +340,7 @@ export async function triggerSync(): Promise<void> {
  */
 export async function syncNow(): Promise<void> {
     const tracks = await getTracks();
-    await uploadIndexToDropbox(tracks);
+    await uploadIndexToServer(tracks);
 }
 
 /**
