@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Icons } from '../constants';
 import { validateToken, normalizePath } from '../services/dropboxService';
 import { saveFullConfig, getFullConfig, clearConfig, exportVaultIndex } from '../services/stationService';
@@ -24,6 +24,14 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
   const [isDeploying, setIsDeploying] = useState(false);
 
   const [status, setStatus] = useState<'idle' | 'validating' | 'success' | 'error'>('idle');
+  
+  // Debounced handlers to prevent lag
+  const tokenInputRef = useRef<HTMLInputElement>(null);
+  const clientIdInputRef = useRef<HTMLInputElement>(null);
+  const clientSecretInputRef = useRef<HTMLInputElement>(null);
+  const ghTokenInputRef = useRef<HTMLInputElement>(null);
+  const ghUserInputRef = useRef<HTMLInputElement>(null);
+  const ghRepoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const current = getFullConfig();
@@ -32,6 +40,41 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
     setClientSecret(current.clientSecret);
     setRoot(current.root);
     setConfig(current);
+    
+    // Set initial values for controlled inputs
+    if (tokenInputRef.current) tokenInputRef.current.value = current.token || '';
+    if (clientIdInputRef.current) clientIdInputRef.current.value = current.clientId || '';
+    if (clientSecretInputRef.current) clientSecretInputRef.current.value = current.clientSecret || '';
+  }, []);
+  
+  // Optimized input handlers - update state only on blur
+  const handleTokenChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    // Update immediately for visual feedback, but don't trigger re-render
+    e.target.value = e.target.value;
+  }, []);
+  
+  const handleTokenBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    setToken(e.target.value);
+  }, []);
+  
+  const handleClientIdBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    setClientId(e.target.value);
+  }, []);
+  
+  const handleClientSecretBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    setClientSecret(e.target.value);
+  }, []);
+  
+  const handleGhTokenChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGhToken(e.target.value);
+  }, []);
+  
+  const handleGhUserChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGhUser(e.target.value);
+  }, []);
+  
+  const handleGhRepoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGhRepo(e.target.value);
   }, []);
 
   const addDeployLog = (msg: string) => setDeployLogs(prev => [...prev, msg].slice(-25));
@@ -49,7 +92,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
   };
 
   const handleGitHubPush = async () => {
-    if (!ghToken || !ghUser || !ghRepo) {
+    const token = ghTokenInputRef.current?.value || ghToken;
+    const user = ghUserInputRef.current?.value || ghUser;
+    const repo = ghRepoInputRef.current?.value || ghRepo;
+    
+    if (!token || !user || !repo) {
       alert("GitHub credentials required.");
       return;
     }
@@ -77,7 +124,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
         }
       }
 
-      await pushToGitHub(ghToken.trim(), ghUser.trim(), ghRepo.trim(), files, addDeployLog);
+      await pushToGitHub(token.trim(), user.trim(), repo.trim(), files, addDeployLog);
       addDeployLog(">> SUCCESS: GITHUB_PUSH_COMPLETE");
     } catch (e: any) {
       addDeployLog(`!! DEPLOY_FAILED: ${e.message}`);
@@ -87,9 +134,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
   };
 
   const handleSave = async () => {
-    const cleanToken = token.trim();
-    const cleanId = clientId.trim();
-    const cleanSecret = clientSecret.trim();
+    const cleanToken = (tokenInputRef.current?.value || token).trim();
+    const cleanId = (clientIdInputRef.current?.value || clientId).trim();
+    const cleanSecret = (clientSecretInputRef.current?.value || clientSecret).trim();
     
     if (!cleanToken || !cleanId || !cleanSecret) {
         setStatus('error');
@@ -149,16 +196,16 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] block mb-4">Username</label>
-                        <input className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-zinc-300 outline-none focus:border-blue-600" placeholder="github_user" value={ghUser} onChange={e => setGhUser(e.target.value)} />
+                        <input ref={ghUserInputRef} className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-zinc-300 outline-none focus:border-blue-600" placeholder="github_user" defaultValue={ghUser} onChange={handleGhUserChange} />
                     </div>
                     <div>
                         <label className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] block mb-4">Repo Name</label>
-                        <input className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-zinc-300 outline-none focus:border-blue-600" placeholder="novastream-radio" value={ghRepo} onChange={e => setGhRepo(e.target.value)} />
+                        <input ref={ghRepoInputRef} className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-zinc-300 outline-none focus:border-blue-600" placeholder="novastream-radio" defaultValue={ghRepo} onChange={handleGhRepoChange} />
                     </div>
                 </div>
                 <div>
                     <label className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] block mb-4">GitHub Personal Access Token</label>
-                    <input type="password" className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-blue-500 outline-none focus:border-blue-600" placeholder="ghp_..." value={ghToken} onChange={e => setGhToken(e.target.value)} />
+                    <input ref={ghTokenInputRef} type="password" className="w-full bg-[#0a0a0c] border border-zinc-800 rounded-2xl p-5 font-mono text-[12px] text-blue-500 outline-none focus:border-blue-600" placeholder="ghp_..." defaultValue={ghToken} onChange={handleGhTokenChange} />
                 </div>
                 <button onClick={handleGitHubPush} disabled={isDeploying} className={`w-full py-6 rounded-2xl font-black uppercase text-[10px] tracking-widest italic transition-all ${isDeploying ? 'bg-zinc-800 animate-pulse' : 'bg-white text-black hover:scale-[1.02] shadow-2xl'}`}>
                     {isDeploying ? 'EXECUTING_SYNC...' : 'Push to GitHub Repository'}
@@ -187,11 +234,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
                             Generate at: <a href="https://www.dropbox.com/developers/apps" target="_blank" className="text-blue-500 underline">dropbox.com/developers/apps</a><br/>
                             Required scopes: files.metadata.read, files.content.read, files.content.write, account_info.read
                         </div>
-                        <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-blue-500 outline-none focus:border-blue-600" placeholder="sl.xxx or FvoDf8gNL..." value={token} onChange={(e) => setToken(e.target.value)} />
+                        <input ref={tokenInputRef} className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-blue-500 outline-none focus:border-blue-600" placeholder="sl.xxx or FvoDf8gNL..." defaultValue={token} onChange={handleTokenChange} onBlur={handleTokenBlur} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-zinc-400 outline-none focus:border-blue-600" placeholder="Dropbox App Key" value={clientId} onChange={(e) => setClientId(e.target.value)} />
-                        <input type="password" className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-zinc-400 outline-none focus:border-blue-600" placeholder="Secret Key" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} />
+                        <input ref={clientIdInputRef} className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-zinc-400 outline-none focus:border-blue-600" placeholder="Dropbox App Key" defaultValue={clientId} onBlur={handleClientIdBlur} />
+                        <input ref={clientSecretInputRef} type="password" className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-zinc-400 outline-none focus:border-blue-600" placeholder="Secret Key" defaultValue={clientSecret} onBlur={handleClientSecretBlur} />
                     </div>
                     <button onClick={handleSave} className="w-full py-5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg">Update Infrastructure</button>
                 </div>
