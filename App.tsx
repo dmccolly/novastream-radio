@@ -280,7 +280,7 @@ const App: React.FC = () => {
       </div>
       
       <main className="flex-1 overflow-hidden relative">
-        <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-8 lg:p-12">
+        <div className="overflow-y-auto custom-scrollbar p-4 sm:p-8 lg:p-12">
           <div className="max-w-7xl mx-auto space-y-6 sm:space-y-12 pb-24 pt-16 lg:pt-0">
             {activeTab === 'studio' && (
               <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
