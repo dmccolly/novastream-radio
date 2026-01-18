@@ -328,7 +328,7 @@ export async function initializeFromServer(): Promise<void> {
     if (localTracks.length < 1000) {
         try {
             console.log('Loading tracks from CDN...');
-            const response = await fetch('https://files.manuscdn.com/user_upload_by_module/session_file/310419663029859616/FNdXXAYHmRUoACHi.json');
+            const response = await fetch('/tracks.json');
             if (response.ok) {
                 const data = await response.json();
                 if (data.tracks && data.tracks.length > 0) {
