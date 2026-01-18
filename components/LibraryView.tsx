@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { Track } from '../types';
 import { Icons } from '../constants';
-import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex } from '../services/stationService';
+import { saveTracksBatch, updateTrack, exportVaultIndex, importVaultIndex, saveTracksBatchWithSync, updateTrackWithSync, initializeFromDropbox } from '../services/stationService';
 import { harvestDropbox } from '../services/dropboxService';
 
 interface LibraryViewProps {
@@ -113,7 +113,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
     addLog(">> VAULT: WRITING_TO_PERSISTENCE...");
     try {
         const toAdd = cloudIndex.filter(t => selectedIds.has(t.id));
-        await saveTracksBatch(toAdd);
+        await saveTracksBatchWithSync(toAdd);
         await onRefresh();
         setIsInspecting(false);
         setSyncComplete(true);
@@ -178,7 +178,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const handleSaveEdit = async () => {
     if (!editingTrack) return;
     try {
-      await updateTrack(editingTrack);
+      await updateTrackWithSync(editingTrack);
       await onRefresh();
       setEditingTrack(null);
     } catch (e: any) {

@@ -17,7 +17,8 @@ import {
   injectDemoTracks,
   setMasterStream,
   connectToNode,
-  getFullConfig
+  getFullConfig,
+  initializeFromDropbox
 } from './services/stationService';
 import { getStreamUrl } from './services/dropboxService';
 import { Track } from './types';
@@ -189,6 +190,10 @@ const App: React.FC = () => {
             navigator.serviceWorker.register('./sw.js').catch(() => {});
           }
           requestPersistence();
+          
+          // Initialize from Dropbox first
+          await initializeFromDropbox();
+          
           const config = getFullConfig();
           let currentTracks = await getTracks();
           const hasCustomVault = config.clientId && config.clientId !== "80tozg97nbba9bs";

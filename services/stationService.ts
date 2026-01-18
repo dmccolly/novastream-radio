@@ -13,6 +13,10 @@ const DB_NAME = 'NOVA_STATION_INDEX_FINAL';
 const LIBRARY_STORE = 'station_library';
 const DB_VERSION = 1;
 const CONFIG_KEY = 'STATION_CONFIG_FINAL';
+const DROPBOX_INDEX_PATH = '/novastream_track_index.json';
+const SYNC_DEBOUNCE_MS = 2000; // Wait 2s after last change before syncing
+
+let syncTimeout: NodeJS.Timeout | null = null;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -75,7 +79,7 @@ export const importVaultIndex = async (file: File) => {
             try {
                 const tracks = JSON.parse(e.target?.result as string);
                 if (Array.isArray(tracks)) {
-                    await saveTracksBatch(tracks);
+                    await saveTracksBatchWithSync(tracks);
                     resolve();
                 } else {
                     reject(new Error("INVALID_JSON"));
@@ -208,3 +212,165 @@ export const connectToNode = (id: string) => {
 export const requestPersistence = async () => {
     if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
 };
+
+// ============================================================================
+// DROPBOX SYNC MODULE
+// ============================================================================
+
+/**
+ * Upload track index to Dropbox
+ */
+async function uploadIndexToDropbox(tracks: any[]): Promise<void> {
+    const config = getFullConfig();
+    if (!config.token) {
+        console.warn('No Dropbox token configured, skipping sync');
+        return;
+    }
+
+    try {
+        const indexData = {
+            version: 1,
+            timestamp: Date.now(),
+            tracks: tracks,
+            trackCount: tracks.length,
+        };
+
+        const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Content-Type': 'application/octet-stream',
+                'Dropbox-API-Arg': JSON.stringify({
+                    path: DROPBOX_INDEX_PATH,
+                    mode: 'overwrite',
+                    autorename: false,
+                    mute: true,
+                }),
+            },
+            body: JSON.stringify(indexData, null, 2),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Dropbox upload failed: ${response.status}`);
+        }
+
+        console.log('✓ Track index synced to Dropbox:', tracks.length, 'tracks');
+    } catch (error: any) {
+        console.error('Failed to sync to Dropbox:', error.message);
+    }
+}
+
+/**
+ * Download track index from Dropbox
+ */
+async function downloadIndexFromDropbox(): Promise<any[] | null> {
+    const config = getFullConfig();
+    if (!config.token) {
+        return null;
+    }
+
+    try {
+        const response = await fetch('https://content.dropboxapi.com/2/files/download', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Dropbox-API-Arg': JSON.stringify({
+                    path: DROPBOX_INDEX_PATH,
+                }),
+            },
+        });
+
+        if (response.status === 409) {
+            // File doesn't exist yet
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(`Dropbox download failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✓ Track index loaded from Dropbox:', data.trackCount, 'tracks');
+        return data.tracks || [];
+    } catch (error: any) {
+        console.error('Failed to load from Dropbox:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Debounced sync to Dropbox
+ * Waits for changes to settle before uploading
+ */
+async function debouncedSyncToDropbox(): Promise<void> {
+    if (syncTimeout) {
+        clearTimeout(syncTimeout);
+    }
+
+    syncTimeout = setTimeout(async () => {
+        const tracks = await getTracks();
+        await uploadIndexToDropbox(tracks);
+    }, SYNC_DEBOUNCE_MS);
+}
+
+/**
+ * Initialize: Load from Dropbox on startup
+ * Call this when the app starts
+ */
+export async function initializeFromDropbox(): Promise<void> {
+    try {
+        const dropboxTracks = await downloadIndexFromDropbox();
+        
+        if (dropboxTracks && dropboxTracks.length > 0) {
+            // Get local tracks
+            const localTracks = await getTracks();
+            
+            // If Dropbox has more tracks, use those
+            if (dropboxTracks.length > localTracks.length) {
+                console.log('Restoring', dropboxTracks.length, 'tracks from Dropbox');
+                await saveTracksBatch(dropboxTracks);
+            } else if (localTracks.length > dropboxTracks.length) {
+                // Local has more, sync to Dropbox
+                console.log('Uploading', localTracks.length, 'local tracks to Dropbox');
+                await uploadIndexToDropbox(localTracks);
+            }
+        }
+    } catch (error: any) {
+        console.error('Failed to initialize from Dropbox:', error.message);
+    }
+}
+
+/**
+ * Enhanced saveTracksBatch with auto-sync
+ */
+export const saveTracksBatchWithSync = async (tracks: any[]) => {
+    await saveTracksBatch(tracks);
+    await debouncedSyncToDropbox();
+};
+
+/**
+ * Enhanced updateTrack with auto-sync
+ */
+export const updateTrackWithSync = async (track: any) => {
+    await updateTrack(track);
+    await debouncedSyncToDropbox();
+};
+
+/**
+ * Manual sync trigger
+ */
+export async function syncNow(): Promise<void> {
+    const tracks = await getTracks();
+    await uploadIndexToDropbox(tracks);
+}
+
+/**
+ * Get sync status
+ */
+export function getSyncStatus(): { enabled: boolean; lastSync?: number } {
+    const config = getFullConfig();
+    return {
+        enabled: !!config.token,
+        lastSync: undefined, // Could store this in localStorage if needed
+    };
+}
