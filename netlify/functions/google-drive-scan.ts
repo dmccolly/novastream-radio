@@ -21,7 +21,10 @@ interface Track {
 // Initialize Google Drive API with service account
 async function getGoogleDriveClient() {
   // Load credentials from Netlify Blobs
-  const store = getStore('novastream');
+  const store = getStore({
+    name: 'novastream',
+    siteID: 'b624300c-f3f9-44f3-b737-bdfaa637cd4c',
+  });
   const credentialsJson = await store.get('google-drive-credentials', { type: 'text' });
   
   if (!credentialsJson) {
