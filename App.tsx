@@ -340,7 +340,11 @@ const App: React.FC = () => {
               </div>
             )}
             
-            {activeTab === 'library' && <LibraryView tracks={tracks} onRefresh={refreshLibrary} />}
+            {activeTab === 'library' && (
+              <div className="h-[calc(100vh-12rem)]">
+                <LibraryView tracks={tracks} onRefresh={refreshLibrary} />
+              </div>
+            )}
             {activeTab === 'settings' && <SettingsView onRefresh={refreshLibrary} />}
             {activeTab === 'scheduler' && <SchedulerView />}
             {activeTab === 'analytics' && <StreamerView isBroadcasting={isAutoPilot} setIsBroadcasting={setIsAutoPilot} isReceiver={isReceiver} onReceiverToggle={setIsReceiver} stationId={stationId} />}
