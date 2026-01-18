@@ -372,7 +372,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
           </div>
 
           {/* Virtual scrolling container */}
-          <div style={{ height: totalHeight, position: 'relative' }}>
+          <div style={{ minHeight: '100%', height: totalHeight, position: 'relative' }}>
             <div style={{ transform: `translateY(${offsetY}px)` }}>
               {visibleTracks.map((track, idx) => (
                 <TrackRow 
