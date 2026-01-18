@@ -28,7 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, canInstall, 
   ];
 
   return (
-    <aside className="w-64 bg-[#0d0d0f] border-r border-zinc-800 flex flex-col h-screen shrink-0 relative z-50">
+    <aside className="w-64 sm:w-72 bg-[#0d0d0f] border-r border-zinc-800 flex flex-col h-screen shrink-0 relative z-50 shadow-2xl lg:shadow-none">
       <div className="p-8">
         <div className="flex items-center gap-3 text-blue-500 font-black text-xl tracking-tighter italic uppercase">
           <div className="p-2 bg-blue-600/10 rounded-xl shadow-lg border border-blue-500/20">

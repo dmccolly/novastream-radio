@@ -43,7 +43,7 @@ const MasterControl: React.FC<MasterControlProps> = ({
   }, [setLogEmitter]);
 
   return (
-    <div className="bg-[#0a0a0c] p-8 rounded-[3rem] border border-zinc-900 shadow-2xl space-y-8 relative overflow-hidden h-fit">
+    <div className="bg-[#0a0a0c] p-4 sm:p-8 rounded-2xl sm:rounded-[3rem] border border-zinc-900 shadow-2xl space-y-4 sm:space-y-8 relative overflow-hidden h-fit">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${isAutoPilot ? 'bg-blue-500 animate-pulse' : 'bg-zinc-800'}`} />
@@ -74,7 +74,7 @@ const MasterControl: React.FC<MasterControlProps> = ({
 
         <button 
           onClick={onProveIt}
-          className="w-full py-8 rounded-2xl bg-white text-black font-black text-[11px] uppercase tracking-[0.5em] shadow-2xl hover:bg-zinc-200 active:scale-95 transition-all"
+          className="w-full py-4 sm:py-8 rounded-xl sm:rounded-2xl bg-white text-black font-black text-[10px] sm:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.5em] shadow-2xl hover:bg-zinc-200 active:scale-95 transition-all"
         >
           ENGAGE SIGNAL
         </button>
@@ -99,7 +99,7 @@ const MasterControl: React.FC<MasterControlProps> = ({
 
       <div 
         ref={logContainerRef}
-        className="bg-black/80 rounded-2xl p-4 h-64 border border-zinc-900 overflow-y-auto custom-scrollbar font-mono text-[8px] space-y-1 shadow-inner flex flex-col"
+        className="bg-black/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 h-48 sm:h-64 border border-zinc-900 overflow-y-auto custom-scrollbar font-mono text-[7px] sm:text-[8px] space-y-1 shadow-inner flex flex-col"
       >
         <div className="text-zinc-800 italic uppercase flex items-center justify-center h-full gap-2 opacity-50">
             <span>Awaiting Signal...</span>

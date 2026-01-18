@@ -49,6 +49,7 @@ const AtomicProgressBar = memo(({ audioRef }: { audioRef: React.RefObject<HTMLAu
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('studio');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [stationId, setStationId] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState(true);
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -242,19 +243,49 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-[#020203] text-zinc-100 overflow-hidden select-none antialiased font-sans">
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        canInstall={!!deferredPrompt} 
-        onInstall={handleInstall} 
-      />
+      {/* Mobile menu button */}
+      <button 
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-zinc-900 rounded-xl border border-zinc-800 hover:bg-zinc-800 transition-colors"
+        aria-label="Toggle menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      
+      {/* Mobile menu overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
+      {/* Sidebar - responsive */}
+      <div className={`
+        fixed lg:relative inset-y-0 left-0 z-40
+        transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 transition-transform duration-300
+      `}>
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setIsMobileMenuOpen(false);
+          }} 
+          canInstall={!!deferredPrompt} 
+          onInstall={handleInstall} 
+        />
+      </div>
+      
       <main className="flex-1 overflow-hidden relative">
-        <div className="h-full overflow-y-auto custom-scrollbar p-12">
-          <div className="max-w-7xl mx-auto space-y-12 pb-24">
+        <div className="h-full overflow-y-auto custom-scrollbar p-4 sm:p-8 lg:p-12">
+          <div className="max-w-7xl mx-auto space-y-6 sm:space-y-12 pb-24 pt-16 lg:pt-0">
             {activeTab === 'studio' && (
               <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
                  <ClockPanel />
-                 <div className="bg-[#0a0a0c] p-6 px-10 rounded-[2.5rem] border border-zinc-900 shadow-2xl flex flex-col items-center">
+                 <div className="bg-[#0a0a0c] p-4 sm:p-6 px-6 sm:px-10 rounded-2xl sm:rounded-[2.5rem] border border-zinc-900 shadow-2xl flex flex-col items-center">
                       <div className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 mb-2 italic">Signal Route</div>
                       <div className="text-xs font-black italic tracking-tighter text-blue-500 font-mono uppercase">DIRECT_MODE</div>
                  </div>
@@ -264,11 +295,11 @@ const App: React.FC = () => {
             {activeTab === 'studio' && (
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
                 <div className="xl:col-span-2 space-y-12">
-                  <div className="bg-[#0a0a0c] rounded-[4.5rem] p-16 border-2 border-zinc-900 shadow-2xl relative overflow-hidden min-h-[400px]">
+                  <div className="bg-[#0a0a0c] rounded-2xl sm:rounded-[4.5rem] p-6 sm:p-16 border-2 border-zinc-900 shadow-2xl relative overflow-hidden min-h-[300px] sm:min-h-[400px]">
                     {!isAutoPilot && !isReceiver && (
                         <div className="absolute inset-0 z-20 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center gap-10">
-                            <h2 className="text-4xl font-black italic uppercase tracking-tighter">Signal Standby</h2>
-                            <button onClick={wakeAudioEngine} className="px-20 py-8 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.5em] shadow-2xl hover:scale-105 transition-all text-xs">Engage Node</button>
+                            <h2 className="text-2xl sm:text-4xl font-black italic uppercase tracking-tighter">Signal Standby</h2>
+                            <button onClick={wakeAudioEngine} className="px-8 sm:px-20 py-4 sm:py-8 bg-blue-600 text-white rounded-xl sm:rounded-[2rem] font-black uppercase tracking-[0.3em] sm:tracking-[0.5em] shadow-2xl hover:scale-105 transition-all text-xs">Engage Node</button>
                         </div>
                     )}
                     
@@ -281,18 +312,18 @@ const App: React.FC = () => {
                         </div>
                     ) : (
                         tracks.length > 0 ? (
-                          <div className="flex flex-col md:flex-row items-center gap-16 relative z-10">
-                            <div className="w-80 h-80 rounded-[4rem] overflow-hidden border-4 border-zinc-900 bg-zinc-950 shadow-2xl">
+                          <div className="flex flex-col items-center gap-6 sm:gap-16 relative z-10">
+                            <div className="w-48 h-48 sm:w-80 sm:h-80 rounded-2xl sm:rounded-[4rem] overflow-hidden border-4 border-zinc-900 bg-zinc-950 shadow-2xl">
                                <img src={tracks[currentTrackIndex]?.coverUrl} className="w-full h-full object-cover opacity-60" alt="Cover" />
                             </div>
-                            <div className="flex-1 w-full">
-                              <h1 className="text-6xl font-black italic uppercase tracking-tighter text-white truncate max-w-lg leading-tight">{tracks[currentTrackIndex]?.title}</h1>
-                              <p className="text-zinc-500 font-bold uppercase tracking-[0.5em] text-xs italic mt-4">{tracks[currentTrackIndex]?.artist}</p>
+                            <div className="flex-1 w-full text-center">
+                              <h1 className="text-2xl sm:text-4xl lg:text-6xl font-black italic uppercase tracking-tighter text-white truncate max-w-full leading-tight">{tracks[currentTrackIndex]?.title}</h1>
+                              <p className="text-zinc-500 font-bold uppercase tracking-[0.3em] sm:tracking-[0.5em] text-xs italic mt-2 sm:mt-4">{tracks[currentTrackIndex]?.artist}</p>
                               <AtomicProgressBar audioRef={audioRef} />
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center h-full text-zinc-800 text-2xl font-black uppercase tracking-[0.5em] italic">Vault Empty</div>
+                          <div className="flex items-center justify-center h-full text-zinc-800 text-lg sm:text-2xl font-black uppercase tracking-[0.3em] sm:tracking-[0.5em] italic">Vault Empty</div>
                         )
                     )}
                   </div>

@@ -287,23 +287,23 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
         </div>
       )}
 
-      <div className="flex justify-between items-center gap-6">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-6">
         <div className="flex-1">
           <input 
               type="text" 
               placeholder="FILTER LOCAL VAULT..." 
-              className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-6 text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
+              className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 sm:px-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)} 
           />
         </div>
-        <div className="flex gap-2">
-            <button onClick={handleImportJSON} disabled={isHarvesting} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all disabled:opacity-50">Import Index</button>
-            <button onClick={() => exportVaultIndex()} className="px-6 py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Export Index</button>
+        <div className="flex flex-wrap gap-2">
+            <button onClick={handleImportJSON} disabled={isHarvesting} className="px-4 sm:px-6 py-2 sm:py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest hover:text-white transition-all disabled:opacity-50">Import Index</button>
+            <button onClick={() => exportVaultIndex()} className="px-4 sm:px-6 py-2 sm:py-3 bg-zinc-900 text-zinc-500 border border-zinc-800 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Export Index</button>
             <button 
                 onClick={triggerCloudHarvest} 
                 disabled={isHarvesting} 
-                className={`px-6 py-3 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600/20 transition-all ${isHarvesting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-4 sm:px-6 py-2 sm:py-3 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest hover:bg-blue-600/20 transition-all ${isHarvesting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
                 {isHarvesting ? 'PROBING...' : 'Scan Cloud'}
             </button>
@@ -320,7 +320,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
         </div>
       </div>
 
-      <div className="flex-1 bg-[#050507] rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden flex min-h-[500px] relative">
+      <div className="flex-1 bg-[#050507] rounded-xl sm:rounded-[2rem] border border-zinc-900 shadow-inner overflow-hidden flex min-h-[400px] sm:min-h-[500px] relative">
         {isHarvesting && (
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl z-[60] flex flex-col items-center justify-center p-12 text-center">
                 <div className="w-12 h-12 border-2 border-t-blue-500 border-zinc-900 rounded-full animate-spin mb-6" />

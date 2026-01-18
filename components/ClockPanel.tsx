@@ -34,18 +34,18 @@ const ClockPanel: React.FC = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-5xl">
-      <div className="bg-[#0a0a0c] p-6 rounded-3xl border border-zinc-900 shadow-2xl">
-        <div className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.4em] mb-2 italic">Studio Master</div>
-        <div ref={localRef} className="text-4xl font-mono text-blue-500 font-bold tracking-tighter text-glow-blue leading-none flex items-baseline">00:00:00</div>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8 w-full max-w-5xl">
+      <div className="bg-[#0a0a0c] p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-900 shadow-2xl">
+        <div className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] mb-2 italic">Studio Master</div>
+        <div ref={localRef} className="text-2xl sm:text-4xl font-mono text-blue-500 font-bold tracking-tighter text-glow-blue leading-none flex items-baseline">00:00:00</div>
       </div>
-      <div className="bg-[#0a0a0c] p-6 rounded-3xl border border-zinc-900 shadow-2xl">
-        <div className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.4em] mb-2 italic">Zulu Time</div>
-        <div ref={zuluRef} className="text-4xl font-mono text-zinc-500 font-bold tracking-tighter leading-none">00:00:00</div>
+      <div className="bg-[#0a0a0c] p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-900 shadow-2xl">
+        <div className="text-zinc-600 text-[8px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] mb-2 italic">Zulu Time</div>
+        <div ref={zuluRef} className="text-2xl sm:text-4xl font-mono text-zinc-500 font-bold tracking-tighter leading-none">00:00:00</div>
       </div>
-      <div className="bg-[#0a0a0c] p-6 rounded-3xl border border-red-900/30 shadow-2xl bg-gradient-to-br from-red-950/5 to-transparent">
-        <div className="text-red-500 text-[8px] font-black uppercase tracking-[0.4em] mb-2 italic">Signal Uptime</div>
-        <div ref={upRef} className="text-4xl font-mono text-red-600 font-bold tracking-tighter text-glow-red leading-none">00:00:00:00</div>
+      <div className="bg-[#0a0a0c] p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-red-900/30 shadow-2xl bg-gradient-to-br from-red-950/5 to-transparent">
+        <div className="text-red-500 text-[8px] font-black uppercase tracking-[0.3em] sm:tracking-[0.4em] mb-2 italic">Signal Uptime</div>
+        <div ref={upRef} className="text-2xl sm:text-4xl font-mono text-red-600 font-bold tracking-tighter text-glow-red leading-none">00:00:00:00</div>
       </div>
     </div>
   );
