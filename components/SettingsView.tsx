@@ -105,6 +105,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
     if (result.success) {
         setStatus('success');
         onRefresh();
+        // Trigger track reload from Dropbox
+        window.dispatchEvent(new CustomEvent('reload-tracks-from-dropbox'));
         setTimeout(() => setStatus('idle'), 3000);
     } else {
         setStatus('error');
@@ -180,8 +182,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ onRefresh }) => {
                 <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-400 italic">Cloud Signal Node</h3>
                 <div className="space-y-6">
                     <div>
-                        <label className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] block mb-3">Dropbox Refresh Token</label>
-                        <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-blue-500 outline-none focus:border-blue-600" value={token} onChange={(e) => setToken(e.target.value)} />
+                        <label className="text-[9px] font-black text-zinc-700 uppercase tracking-[0.4em] block mb-3">Dropbox Access Token</label>
+                        <div className="text-[8px] text-zinc-600 mb-2 leading-relaxed">
+                            Generate at: <a href="https://www.dropbox.com/developers/apps" target="_blank" className="text-blue-500 underline">dropbox.com/developers/apps</a><br/>
+                            Required scopes: files.metadata.read, files.content.read, files.content.write, account_info.read
+                        </div>
+                        <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-blue-500 outline-none focus:border-blue-600" placeholder="sl.xxx or FvoDf8gNL..." value={token} onChange={(e) => setToken(e.target.value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <input className="w-full bg-black border border-zinc-800 rounded-xl p-4 font-mono text-[11px] text-zinc-400 outline-none focus:border-blue-600" placeholder="Dropbox App Key" value={clientId} onChange={(e) => setClientId(e.target.value)} />

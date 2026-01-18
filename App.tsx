@@ -203,6 +203,15 @@ const App: React.FC = () => {
           }
           setTracks(currentTracks);
           setIsInitializing(false);
+          
+          // Listen for token updates and reload tracks
+          window.addEventListener('reload-tracks-from-dropbox', async () => {
+            addLog('>> VAULT: RELOADING_FROM_DROPBOX...');
+            await initializeFromDropbox();
+            const reloadedTracks = await getTracks();
+            setTracks(reloadedTracks);
+            addLog(`>> VAULT: LOADED ${reloadedTracks.length} TRACKS`);
+          });
 
           initP2P(
             (id) => { setStationId(id); addLog(`>> P2P: NODE_${id}`); }, 
