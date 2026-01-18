@@ -1,5 +1,4 @@
 import { Handler } from '@netlify/functions';
-import { getStore } from '@netlify/blobs';
 import { google } from 'googleapis';
 
 const FOLDER_ID = '1e5zYB0gtYJQt43BZS4cSZJ05E8fCuUiV';
@@ -19,20 +18,20 @@ interface Track {
 }
 
 // Initialize Google Drive API with service account
-async function getGoogleDriveClient(context: any) {
-  // Load credentials from Netlify Blobs
-  const store = getStore({
-    name: 'novastream',
-    siteID: context.site?.id || 'b624300c-f3f9-44f3-b737-bdfaa637cd4c',
-    token: context.token,
-  });
-  const credentialsJson = await store.get('google-drive-credentials', { type: 'text' });
+async function getGoogleDriveClient() {
+  // Load credentials config and add private key from environment
+  const credentialsConfig = require('./google-credentials-config.json');
+  const privateKeyB64 = process.env.GOOGLE_DRIVE_PRIVATE_KEY_B64;
   
-  if (!credentialsJson) {
-    throw new Error('Google Drive credentials not found in Netlify Blobs');
+  if (!privateKeyB64) {
+    throw new Error('GOOGLE_DRIVE_PRIVATE_KEY_B64 environment variable not set');
   }
   
-  const credentials = JSON.parse(credentialsJson);
+  const privateKey = Buffer.from(privateKeyB64, 'base64').toString('utf-8');
+  const credentials = {
+    ...credentialsConfig,
+    private_key: privateKey,
+  };
   
   const auth = new google.auth.GoogleAuth({
     credentials,
@@ -110,7 +109,7 @@ export const handler: Handler = async (event, context) => {
 
   try {
     console.log('Starting Google Drive scan...');
-    const drive = await getGoogleDriveClient(context);
+    const drive = await getGoogleDriveClient();
     const tracks = await scanFolder(drive, FOLDER_ID);
     
     console.log(`Found ${tracks.length} audio files`);
