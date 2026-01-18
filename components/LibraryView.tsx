@@ -269,7 +269,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col flex-1 space-y-6 overflow-hidden">
       {/* Sync Status Banner */}
       {tracks.length === 0 ? (
         <div className="bg-red-600/10 border border-red-500/30 rounded-xl p-4 flex items-center justify-between">
