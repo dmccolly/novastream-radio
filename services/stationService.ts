@@ -11,7 +11,7 @@ const MASTER_VAULT = {
 const DB_NAME = 'NOVA_STATION_INDEX_FINAL'; 
 const LIBRARY_STORE = 'station_library';
 const DB_VERSION = 1;
-const CONFIG_KEY = 'STATION_CONFIG_FINAL';
+const CONFIG_KEY = 'STATION_CONFIG_V2_REFRESH_TOKEN';
 const DROPBOX_INDEX_PATH = '/novastream_track_index.json';
 const SYNC_DEBOUNCE_MS = 2000; // Wait 2s after last change before syncing
 
