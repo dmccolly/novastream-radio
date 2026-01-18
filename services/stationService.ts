@@ -316,32 +316,47 @@ async function debouncedSyncToDropbox(): Promise<void> {
 }
 
 /**
- * Initialize: Load from Dropbox on startup
+ * Initialize: Load from CDN first, then IndexedDB
  * Call this when the app starts
  */
 export async function initializeFromServer(): Promise<void> {
-    // ALWAYS load from IndexedDB first (primary source)
+    // Check IndexedDB first
     const localTracks = await getTracks();
     console.log('Loaded', localTracks.length, 'tracks from IndexedDB');
     
-    // Then try to sync with Dropbox (secondary backup)
+    // If we have no tracks, load from CDN
+    if (localTracks.length === 0) {
+        try {
+            console.log('Loading tracks from CDN...');
+            const response = await fetch('https://files.manuscdn.com/user_upload_by_module/session_file/310419663029859616/FNdXXAYHmRUoACHi.json');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.tracks && data.tracks.length > 0) {
+                    console.log('Loaded', data.tracks.length, 'tracks from CDN');
+                    await saveTracksBatch(data.tracks);
+                    return;
+                }
+            }
+        } catch (error: any) {
+            console.error('Failed to load from CDN:', error.message);
+        }
+    }
+    
+    // Fallback: Try Dropbox sync (legacy)
     try {
         const dropboxTracks = await downloadIndexFromServer();
         
         if (dropboxTracks && dropboxTracks.length > 0) {
-            // If Dropbox has more tracks, restore them
             if (dropboxTracks.length > localTracks.length) {
                 console.log('Restoring', dropboxTracks.length, 'tracks from Dropbox');
                 await saveTracksBatch(dropboxTracks);
             } else if (localTracks.length > dropboxTracks.length) {
-                // Local has more, sync to Dropbox
                 console.log('Uploading', localTracks.length, 'local tracks to Dropbox');
                 await uploadIndexToServer(localTracks);
             }
         }
     } catch (error: any) {
         console.log('Dropbox sync skipped:', error.message);
-        // IndexedDB tracks are already loaded, so this is not a fatal error
     }
 }
 
