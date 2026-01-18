@@ -218,54 +218,84 @@ export const requestPersistence = async () => {
 // ============================================================================
 
 /**
- * Upload track index to Dropbox
+ * Upload track index directly to Dropbox
  */
 async function uploadIndexToServer(tracks: any[]): Promise<void> {
     try {
-        const indexData = {
-            version: 1,
-            timestamp: Date.now(),
-            tracks: tracks,
-            trackCount: tracks.length,
-        };
+        const config = getFullConfig();
+        if (!config.token) {
+            console.warn('No Dropbox token configured, skipping sync');
+            return;
+        }
 
-        const response = await fetch('/api/track-index', {
+        // Upload directly to Dropbox
+        const indexData = JSON.stringify(tracks, null, 2);
+        const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(indexData),
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Dropbox-API-Arg': JSON.stringify({
+                    path: DROPBOX_INDEX_PATH,
+                    mode: 'overwrite',
+                    autorename: false,
+                    mute: false
+                }),
+                'Content-Type': 'application/octet-stream'
+            },
+            body: indexData
         });
 
         if (!response.ok) {
-            throw new Error(`Server upload failed: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Dropbox upload failed: ${response.status} - ${errorText}`);
         }
 
-        console.log('✓ Track index synced to server:', tracks.length, 'tracks');
+        console.log('✓ Track index synced to Dropbox:', tracks.length, 'tracks');
     } catch (error: any) {
         console.error('Failed to sync to server:', error.message);
     }
 }
 
 /**
- * Download track index from Dropbox
+ * Download track index directly from Dropbox
  */
 async function downloadIndexFromServer(): Promise<any[] | null> {
     try {
-        const response = await fetch('/api/track-index', {
-            method: 'GET',
+        const config = getFullConfig();
+        if (!config.token) {
+            console.warn('No Dropbox token configured, skipping download');
+            return null;
+        }
+
+        // Download from Dropbox
+        const response = await fetch('https://content.dropboxapi.com/2/files/download', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Dropbox-API-Arg': JSON.stringify({
+                    path: DROPBOX_INDEX_PATH
+                })
+            }
         });
 
         if (!response.ok) {
-            throw new Error(`Server download failed: ${response.status}`);
+            if (response.status === 409) {
+                // File doesn't exist yet, that's okay
+                console.log('No track index found in Dropbox (first time setup)');
+                return null;
+            }
+            const errorText = await response.text();
+            throw new Error(`Dropbox download failed: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
-        if (data.tracks && data.tracks.length > 0) {
-            console.log('✓ Track index loaded from server:', data.trackCount, 'tracks');
-            return data.tracks;
+        if (Array.isArray(data) && data.length > 0) {
+            console.log('✓ Track index loaded from Dropbox:', data.length, 'tracks');
+            return data;
         }
         return null;
     } catch (error: any) {
-        console.error('Failed to load from server:', error.message);
+        console.error('Failed to load from Dropbox:', error.message);
         return null;
     }
 }
