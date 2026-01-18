@@ -409,8 +409,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                         <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Title</label>
                         <input 
                             type="text" 
-                            defaultValue={editingTrack.title} 
-                            onBlur={(e) => setEditingTrack({...editingTrack, title: e.target.value})}
+                            value={editingTrack.title} 
+                            onChange={(e) => setEditingTrack({...editingTrack, title: e.target.value})}
                             className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
                         />
                     </div>
@@ -418,15 +418,15 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                         <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Artist</label>
                         <input 
                             type="text" 
-                            defaultValue={editingTrack.artist} 
-                            onBlur={(e) => setEditingTrack({...editingTrack, artist: e.target.value})}
+                            value={editingTrack.artist} 
+                            onChange={(e) => setEditingTrack({...editingTrack, artist: e.target.value})}
                             className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
                         />
                     </div>
                     <div>
                         <label className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-600 block mb-2">Type</label>
                         <select 
-                            defaultValue={editingTrack.assetType} 
+                            value={editingTrack.assetType} 
                             onChange={(e) => setEditingTrack({...editingTrack, assetType: e.target.value as any})}
                             className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-bold uppercase text-zinc-300 outline-none focus:border-blue-600 transition-all"
                         >
@@ -443,8 +443,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
                         <input 
                             type="number" 
                             step="0.1"
-                            defaultValue={editingTrack.segueOffset || 0} 
-                            onBlur={(e) => setEditingTrack({...editingTrack, segueOffset: parseFloat(e.target.value) || 0})}
+                            value={editingTrack.segueOffset || 0} 
+                            onChange={(e) => setEditingTrack({...editingTrack, segueOffset: parseFloat(e.target.value) || 0})}
                             className="w-full bg-black border border-zinc-800 rounded-lg py-2 px-4 text-[10px] font-mono text-zinc-300 outline-none focus:border-blue-600 transition-all"
                         />
                     </div>
