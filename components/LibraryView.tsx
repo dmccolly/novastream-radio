@@ -73,6 +73,7 @@ const TrackRow = memo(({
 });
 
 const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
+  const [searchValue, setSearchValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
@@ -89,15 +90,16 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
 
   const addLog = useCallback((msg: string) => setLogs(prev => [...prev, msg].slice(-30)), []);
 
-  // Direct debounced search handler - no state updates until debounce completes
+  // Immediate visual feedback + debounced filtering
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
+    setSearchValue(value); // Immediate update for visual feedback
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(value);
-    }, 150);
+    }, 300); // Increased to 300ms for better performance
   }, []);
 
   useEffect(() => {
@@ -210,19 +212,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
   const filteredTracks = useMemo(() => {
     const term = debouncedSearch.toLowerCase().trim();
     const baseList = isInspecting ? cloudIndex : tracks;
-    if (!term) return baseList;
-    return baseList.filter(t => {
-      const searchableText = [
-        t.title,
-        t.artist,
-        t.album || '',
-        t.assetType,
-        t.source,
-        t.id,
-        CATEGORY_MAP[t.assetType] || ''
-      ].join(' ').toLowerCase();
-      return searchableText.includes(term);
-    });
+    if (!term) return baseList.slice(0, 500); // Limit initial display to 500 tracks
+    
+    // Optimized filtering - limit results to 500 max
+    const results: Track[] = [];
+    for (let i = 0; i < baseList.length && results.length < 500; i++) {
+      const t = baseList[i];
+      const searchableText = `${t.title} ${t.artist} ${t.album || ''} ${t.assetType}`.toLowerCase();
+      if (searchableText.includes(term)) {
+        results.push(t);
+      }
+    }
+    return results;
   }, [isInspecting, cloudIndex, tracks, debouncedSearch]);
 
   const toggleSelection = useCallback((id: string) => {
@@ -316,7 +317,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({ tracks, onRefresh }) => {
               placeholder="FILTER LOCAL VAULT..." 
               className="w-full bg-black border border-zinc-800 rounded-xl py-3 px-4 sm:px-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest outline-none focus:border-blue-600 transition-all" 
               onChange={handleSearchChange} 
-              defaultValue=""
+              value={searchValue}
           />
         </div>
         <div className="flex flex-wrap gap-2">
